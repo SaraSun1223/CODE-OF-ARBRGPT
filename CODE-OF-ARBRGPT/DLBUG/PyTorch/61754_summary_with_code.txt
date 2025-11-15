@@ -1,0 +1,110 @@
+[Title] [ONNX] Invalid ONNX graph when exporting prim__Constant of empty tensor data
+
+## 🐛 Bug
+
+torch.onnx exports invalid ONNX for scalar `torch.zeros` followed by an inplace op.
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+1. Run the following script
+
+```
+import torch
+
+
+class Zeros(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        y = torch.zeros(())
+        y += x
+        return y
+
+
+x = torch.tensor(42.)
+torch.onnx.export(Zeros(), x, 'zeros.onnx')
+```
+
+You will see 
+
+```
+==> Context: Bad node spec: output: "1" name: "Constant_0" op_type: "Constant" attribute { name: "value" type: TENSORS }
+```
+
+If you show the ONNX by disabling onnx checker and shape inference (ONNX's shape inference SEGVs for the invalid ONNX in question) by
+
+```
+torch.onnx._export(
+    Zeros(), x, 'zeros.onnx',
+    enable_onnx_checker=False,
+    onnx_shape_inference=False,
+)
+print(onnx.load('zeros.onnx'))
+```
+
+you will see
+
+```
+  node {
+    output: "1"
+    name: "Constant_0"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      type: TENSORS
+    }
+  }
+```
+
+so it seems the parameter for `torch.zeros`, which is `()`, is translated to `TENSORS` not a scalar `TENSOR`.
+
+
+## Expected behavior
+
+This script does not raise an error. Note torch 1.7.1 did not have this issue and it seems this issue is introduced in 1.8.0.
+
+## Environment
+
+```
+Collecting environment information...
+PyTorch version: 1.8.0
+Is debug build: False
+CUDA used to build PyTorch: 10.2
+ROCM used to build PyTorch: N/A
+
+OS: Ubuntu 18.04.5 LTS (x86_64)
+GCC version: (Ubuntu 10.1.0-2ubuntu1~18.04) 10.1.0
+Clang version: Could not collect
+CMake version: version 3.10.2
+Libc version: glibc-2.27
+
+Python version: 3.8.6 (default, Apr  1 2021, 08:23:31)  [GCC 7.5.0] (64-bit runtime)
+Python platform: Linux-5.4.0-58-generic-x86_64-with-glibc2.2.5
+Is CUDA available: False
+CUDA runtime version: 10.2.89
+GPU models and configuration: Could not collect
+Nvidia driver version: Could not collect
+cuDNN version: /usr/lib/x86_64-linux-gnu/libcudnn.so.7.6.5
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] chainer-pytorch-migration==0.0.1
+[pip3] numpy==1.19.5
+[pip3] pytorch-pfn-extras==0.3.2
+[pip3] torch==1.8.0
+[pip3] torchtext==0.8.1
+[pip3] torchvision==0.10.0
+[conda] Could not collect
+```
+
+Note I tried torch 1.7.1, 1.8.0, 1.8.1, and 1.9.0. Only 1.7.1 passed this check.
+
+## Additional context
+
+There seem to be a few workarounds like replacing `y += x` by `y = y + x` or using `torch.scalar_tensor(0.)` instead of `torch.zeros(())`.
+
+cc @BowenBao @neginraoof

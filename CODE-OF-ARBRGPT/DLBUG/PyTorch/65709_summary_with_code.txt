@@ -1,0 +1,55 @@
+[Title] Difference in `torch.normal` between pytorch 1.8.1 and pytorch 1.9.0
+
+## 🐛 Bug
+
+I observed the following difference in `torch.normal` and not sure is it intentional or not.
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+```
+torch.normal(mean=torch.empty((0, 2)), std=torch.empty((0, 1)))
+```
+
+On 1.8.1:
+
+```
+>>> import torch
+>>> torch.normal(mean=torch.empty((0, 2)), std=torch.empty((0, 1)))
+tensor([], size=(0, 2))
+```
+
+On 1.9.0
+
+```
+>>> import torch
+>>> torch.normal(mean=torch.empty((0, 2)), std=torch.empty((0, 1)))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+RuntimeError: min(): Expected reduction dim to be specified for input.numel() == 0. Specify the reduction dim with the 'dim' argument.
+```
+
+Note that the `torch.empty` is just an example with the right shape. It could be replaced by the `torch.rand()`.
+
+## Expected behavior
+
+I expect 1.9.0 work the same way as 1.8.1 and return a tensor.
+
+## Environment
+
+ - PyTorch Version (e.g., 1.0): 1.9.0
+ - OS (e.g., Linux): Linux
+ - How you installed PyTorch (`conda`, `pip`, source): docker image https://hub.docker.com/r/pytorch/pytorch/tags?page=1&ordering=last_updated
+ - Build command you used (if compiling from source):
+ - Python version: 3.7
+ - CUDA/cuDNN version: n/a
+ - GPU models and configuration: n/a
+ - Any other relevant information:
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @fritzo @neerajprad @alicanb @nikitaved @pbelevich

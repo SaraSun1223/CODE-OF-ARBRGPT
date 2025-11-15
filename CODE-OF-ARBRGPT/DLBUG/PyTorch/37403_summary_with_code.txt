@@ -1,0 +1,80 @@
+[Title] torch.multinomial behaves abnormally with CUDA tensor
+
+## 🐛 Bug
+
+Seems 'torch.multinomial' can not handle high-precisionly drawing from multinomial distribution in CUDA.
+
+## To Reproduce
+
+To sample from a large corpus with an uniform distribution in CPU and CUDA seperately:
+
+```python
+import torch
+from collections import Counter
+
+if __name__ == '__main__':
+    for corpus_size in [10000, 1000000]:
+        print('when corpus size={}'.format(corpus_size))
+        for device in ['cpu', 'cuda']:
+            freqs = [1.0 for _ in range(corpus_size)]
+            freqs = torch.tensor(freqs, device=device)
+            samples = []
+            for _ in range(100):
+                samples += torch.multinomial(freqs, 100000, replacement=True).tolist()
+            counter = Counter(samples)
+            counter = {k: v for k, v in
+                       sorted(dict(counter).items(), key=lambda item: item[0], reverse=False)}
+            keys = list(counter.keys())
+            values = list(counter.values())
+            print('  in devce {}'.format(device))
+            print('\tkeys:', keys[:10])
+            print('\tcount:', values[:10])
+```
+
+output of the code above:
+
+```text
+when corpus size=10000
+  in device cpu
+        keys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        count: [1036, 995, 1003, 995, 974, 961, 990, 998, 945, 1015] 
+  in device cuda
+        keys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        count: [1300, 900, 1100, 700, 800, 1022, 1000, 1000, 1400, 800]
+when corpus size=1000000
+  in device cpu
+        keys: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        count: [11, 12, 16, 4, 9, 9, 4, 13, 14, 13]
+  in device cuda
+        keys: [0, 19, 30, 41, 43, 45, 46, 56, 64, 67]
+        count: [100, 100, 100, 100, 100, 100, 100, 100, 200, 100]
+```
+
+torch.multinomial in CUDA output abnormally especially in large corpus, when corpus size=10^6, many keys is not sampled at all while others are sampled 100 times equally. Change the multinomial distribution input tensor to 'float64' doesn't solve this problem.
+
+## Environment
+
+PyTorch version: 1.5.0+cu92
+Is debug build: No
+CUDA used to build PyTorch: 9.2
+
+OS: Alibaba Group Enterprise Linux Server 7.2 (Paladin)
+GCC version: (GCC) 4.8.5 20150623 (Red Hat 4.8.5-28)
+CMake version: Could not collect
+
+Python version: 3.7
+Is CUDA available: Yes
+CUDA runtime version: Could not collect
+GPU models and configuration:
+GPU 0: Tesla V100-SXM2-16GB
+GPU 1: Tesla V100-SXM2-16GB
+GPU 2: Tesla V100-SXM2-16GB
+GPU 3: Tesla V100-SXM2-16GB
+GPU 4: Tesla V100-SXM2-16GB
+GPU 5: Tesla V100-SXM2-16GB
+GPU 6: Tesla V100-SXM2-16GB
+GPU 7: Tesla V100-SXM2-16GB
+
+Nvidia driver version: 396.82
+
+cc @ezyang @gchanan @zou3519 @ngimel @pbelevich

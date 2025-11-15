@@ -1,0 +1,24 @@
+[Title] [Numpy] Symbolic basic indexing bug
+
+Reproducible example:
+
+```python
+import mxnet as mx
+mx.npx.set_np()
+
+class IntegerIndexing(mx.gluon.HybridBlock):
+        def __init__(self, a, prefix=None, params=None):
+            super().__init__(prefix=prefix, params=params)
+            self._a = a
+        def hybrid_forward(self, F, x):
+            return x[self._a]
+
+net = IntegerIndexing(-1)
+net.hybridize()
+net(mx.np.ones(3,))
+```
+
+Error:
+```
+MXNetError: MXNetError: Error in operator integerindexing0_reshape0: [23:58:56] ../src/operator/numpy/np_matrix_op.cc:243: Check failed: src[src_inx] == 1 (0 vs. 1) : -3 index should only be used to skip dimension size 1
+```

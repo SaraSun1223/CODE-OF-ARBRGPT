@@ -1,0 +1,75 @@
+[Title] Issue with tflite converter in tf-nightly_  'tf.If' op 'then_branch' input type tensor__xf32_ is incompatible with input type tensor__xi64_ at index 0
+
+**System information**
+- OS Platform and Distribution: Linux Ubuntu 18.04.5
+- Python version: 3.7.4
+- TensorFlow version: tf-nightly-2.5.0.dev20210124
+
+Hello, I have a new issue with the tflite converter which is happening only when using nightly (it isn't happening when using tensorflow main branch). I tried as much as I can to create the minimal code to reproduce: 
+
+    !pip install tf-nightly
+    import tensorflow as tf
+    import os
+    import numpy as np
+    
+    class EXAMPLE(tf.Module):
+    
+        @tf.function(input_signature=[tf.TensorSpec(shape=[100], dtype=tf.float32)])
+        def calculate(self, x):
+        
+          maxima_ind = tf.where(x > 0.8)
+          maxima_ind = tf.gather(maxima_ind,0,axis=1)
+    
+          maxima_ind = tf.cast(maxima_ind, dtype=tf.float32)
+    
+          if len(maxima_ind) > 10:
+              maxima_ind = tf.cast(maxima_ind, dtype=tf.float32)
+    
+          return maxima_ind
+          
+    to_export = EXAMPLE()
+    np.random.seed(54)
+    buffer_size = 100
+    x1  = tf.convert_to_tensor(np.random.rand(buffer_size).astype('float32'))
+    
+    
+    solution = to_export.calculate(x1)
+    print(solution)
+    models_dir = '/content/model_example/'
+    tf.saved_model.save(to_export, models_dir)
+    imported = tf.saved_model.load(models_dir)
+    converter = tf.lite.TFLiteConverter.from_saved_model(models_dir) # path to the SavedModel directory
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS,
+                                            tf.lite.OpsSet.SELECT_TF_OPS]
+    
+    tflite_model = converter.convert()
+    with open(models_dir + 'model_example.tflite', 'wb') as f:
+      f.write(tflite_model)
+
+When running it, I'm getting this error: 
+
+    Exception                                 Traceback (most recent call last)
+    /usr/local/lib/python3.6/dist-packages/tensorflow/lite/python/convert.py in toco_convert_protos(model_flags_str, toco_flags_str, input_data_str, debug_info_str, enable_mlir_converter)
+        216                                                  debug_info_str,
+    --> 217                                                  enable_mlir_converter)
+        218       return model_str
+    
+    4 frames
+    Exception: <unknown>:0: error: loc("cond@__inference_calculate_3155"): 'tf.If' op 'then_branch' input type tensor<?xf32> is incompatible with input type tensor<?xi64> at index 0
+    
+    
+    During handling of the above exception, another exception occurred:
+    
+        ConverterError                            Traceback (most recent call last)
+        /usr/local/lib/python3.6/dist-packages/tensorflow/lite/python/convert.py in toco_convert_protos(model_flags_str, toco_flags_str, input_data_str, debug_info_str, enable_mlir_converter)
+            218       return model_str
+            219     except Exception as e:
+        --> 220       raise ConverterError(str(e))
+            221 
+            222   if distutils.spawn.find_executable(_toco_from_proto_bin) is None:
+        
+        ConverterError: <unknown>:0: error: loc("cond@__inference_calculate_3155"): 'tf.If' op 'then_branch' input type tensor<?xf32> is incompatible with input type tensor<?xi64> at index 0
+
+You can also use this gist (which include the above code): https://colab.research.google.com/gist/AiaHaruv/6cac62614ef85f76db8bcfcfa0b8baae/conversion_bug.ipynb
+I understand there is a thing with the types but I'm using casting before the if statement and inside of it I'm actually doing nothing, and it isn't happening in the main branch..  
+Any help will be appreciated. Thank you

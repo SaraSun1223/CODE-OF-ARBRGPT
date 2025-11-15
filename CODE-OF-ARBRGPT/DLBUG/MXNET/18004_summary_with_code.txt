@@ -1,0 +1,38 @@
+[Title] Wrong result when using new numpy ffi in deferred compute
+
+Find it in CI result of https://github.com/apache/incubator-mxnet/pull/17958.
+
+## Reproduce:
+
+Sample code, use master branch
+
+```python
+import mxnet as mx
+import mxnet._deferred_compute as dc
+from mxnet import np, npx
+npx.set_np()
+with dc.context():
+    a = np.ones((2, 2))
+    b = np.tril(a, 1)
+    c = np.tril(a, -1)
+
+sym = dc.get_symbol([b, c], sym_cls=mx.sym.np._Symbol)
+res = sym.bind(mx.context.current_context(), args={}).forward()
+res
+```
+
+Results:
+
+```
+[
+[[1. 1.]
+ [1. 1.]]
+<NDArray 2x2 @cpu(0)>,
+[[1. 1.]
+ [1. 1.]]
+<NDArray 2x2 @cpu(0)>]
+```
+
+If replace `_api_internal.tril` by `_npi.tril`, the result is right.
+
+@leezu Can you take a look at this?

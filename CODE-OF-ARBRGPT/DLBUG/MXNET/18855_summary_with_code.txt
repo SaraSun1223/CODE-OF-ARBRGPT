@@ -1,0 +1,107 @@
+[Title] NumPy BLAS Clashing with MXNet BLAS
+
+Both NumPy and MXNet are dependent on BLAS. When they are linked to different BLAS libraries there will be a name clashing issue. Effectively, only functions from NumPy's BLAS will be used by both NumPy and MXNet.
+
+According to https://stackoverflow.com/questions/47891872/how-to-use-non-mkl-numpy-under-anaconda, anaconda will by default ship MKL-dependent NumPy. This is also the case on DLAMI 30:
+```
+ubuntu@ip-172-31-40-81:~$ python3
+Python 3.7.7 (default, Mar 26 2020, 15:48:22) 
+[GCC 7.3.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import numpy as np
+>>> np.show_config()
+blas_mkl_info:
+    libraries = ['mkl_rt', 'pthread']
+    library_dirs = ['/home/ubuntu/anaconda3/lib']
+    define_macros = [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)]
+    include_dirs = ['/home/ubuntu/anaconda3/include']
+blas_opt_info:
+    libraries = ['mkl_rt', 'pthread']
+    library_dirs = ['/home/ubuntu/anaconda3/lib']
+    define_macros = [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)]
+    include_dirs = ['/home/ubuntu/anaconda3/include']
+lapack_mkl_info:
+    libraries = ['mkl_rt', 'pthread']
+    library_dirs = ['/home/ubuntu/anaconda3/lib']
+    define_macros = [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)]
+    include_dirs = ['/home/ubuntu/anaconda3/include']
+lapack_opt_info:
+    libraries = ['mkl_rt', 'pthread']
+    library_dirs = ['/home/ubuntu/anaconda3/lib']
+    define_macros = [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)]
+    include_dirs = ['/home/ubuntu/anaconda3/include']
+>>> 
+
+```
+
+I first ran into this issue while working on adding large tensor support to linalg operators, where I used a manually built int 64 version of Open BLAS. I used this simple test script:
+```
+def run_test():
+  import mxnet as mx
+  from mxnet import nd
+
+  # large tensor, only works on int 64 BLAS
+  A=mx.nd.ones(shape=(1, 2**31))
+  nd.linalg.syrk(A)
+  nd.waitall()
+
+if __name__ == '__main__':
+    run_test()
+```
+
+On my machine (DLAMI 30 Ubuntu 18) Open BLAS is built with `DYNAMIC_ARCH=1 DYNAMIC_OLDER=1 USE_OPENMP=1 INTERFACE64=1 BINARY=64 NO_SHARED=0 NO_LAPACK=0` and MXNet is built with `USE_BLAS="open" USE_INT64_TENSOR_SIZE=1`. Numpy is pre-installed with MKL optimization. 
+
+Ideally, `linalg.syrk` would invoke Open BLAS `cblas_ssyrk` (my build, 64 bit int), but in reality because of the name clashing, MKL `cblas_ssyrk` (32 bit int) is called instead. This will lead to:
+```
+ubuntu@ip-172-31-40-81:~$ python test.py 
+[21:58:23] ../src/storage/storage.cc:198: Using Pooled (Naive) StorageManager for CPU
+oooof
+
+Intel MKL ERROR: Parameter 5 was incorrect on entry to cblas_ssyrk.
+```
+
+Using GDB we can see we are indeed calling into MKL `cblas_ssyrk`:
+```
+[22:02:04] ../src/storage/storage.cc:198: Using Pooled (Naive) StorageManager for CPU
+oooof
+[Switching to Thread 0x7ffdcffff700 (LWP 22329)]
+
+Thread 6 "python3" hit Breakpoint 1, 0x00007ffff608fe50 in cblas_ssyrk_ ()
+   from /home/ubuntu/anaconda3/lib/python3.7/site-packages/mkl/../../../libmkl_rt.so
+(gdb) bt
+#0  0x00007ffff608fe50 in cblas_ssyrk_ ()
+   from /home/ubuntu/anaconda3/lib/python3.7/site-packages/mkl/../../../libmkl_rt.so
+#1  0x00007fffe8b10c85 in linalg_syrk<mshadow::cpu, float> (s=<optimized out>, tA=false, beta=0, alpha=1, 
+    B=..., A=...) at ../src/operator/tensor/./../linalg_impl.h:983
+#2  linalg_batch_syrk<mshadow::cpu, float> (s=<optimized out>, tA=false, beta=0, alpha=1, B=..., A=...)
+    at ../src/operator/tensor/./../linalg_impl.h:985
+#3  mxnet::op::syrk::op<mshadow::cpu, float> (s=<optimized out>, tA=false, beta=0, alpha=1, B=..., A=...)
+    at ../src/operator/tensor/./la_op-inl.h:340
+#4  mxnet::op::syrk::op<mshadow::cpu, float> (attrs=..., s=<optimized out>, B=..., A=...)
+    at ../src/operator/tensor/./la_op-inl.h:350
+#5  mxnet::op::syrk::op<mshadow::cpu, float> (attrs=..., ctx=..., B=..., A=...)
+    at ../src/operator/tensor/./la_op-inl.h:356
+#6  mxnet::op::LaOpCaller<mshadow::cpu, float, 2, 2, 1, 1, mxnet::op::syrk>::op (axis=-2, ctx=..., 
+    attrs=..., outputs=..., inputs=...) at ../src/operator/tensor/./la_op.h:560
+#7  mxnet::op::LaOpForward<mshadow::cpu, 2, 2, 1, 1, mxnet::op::syrk> (attrs=..., ctx=..., inputs=..., 
+    req=..., outputs=...) at ../src/operator/tensor/./la_op.h:671
+#8  0x00007fffe56ed740 in std::function<void (nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&)>::operator()(nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&) const (__args#4=std::vector of length 1, capacity 1 = {...}, 
+    __args#3=std::vector of length 1, capacity 1 = {...}, 
+    __args#2=std::vector of length 1, capacity 1 = {...}, __args#1=..., __args#0=..., this=0x555556371c38)
+    at /usr/include/c++/7/bits/std_function.h:706
+#9  mxnet::imperative::PushFCompute(std::function<void (nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&)> const&, nnvm::Op const*, nnvm::NodeAttrs const&, mxnet::Context const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::Resource, std::allocator<mxnet::Resource> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<unsigned int, std::allocator<unsigned int> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&)::{lambda(mxnet::RunContext)#1}::operator()(mxnet::RunContext) const (
+    __closure=0x555556371bb0, rctx=...) at ../src/imperative/./imperative_utils.h:494
+```
+
+Reinstalling NumPy and linking it to my Open BLAS build resolved the issue for me.
+
+
+
+
+
+
+So the problem with this name clashing issue is that regardless of what BLAS we build MXNet with, we are stuck with the BLAS that NumPy is configured to use. While in most cases, such as supporting large tensor i.e. 64-bit indexing, it's fine to configure them to use the same BLAS lib (int 64 Open BLAS in my case), I wonder if there is special use case where we actually want different BLAS for NumPy and MXNet?
+
+My guess would be "no", but still we should be aware of this issue as well as the extra step to reconfig NumPy and MXNet to the correct BLAS, and we probably need to note so in our build tutorial
+
+This same issue is also noted on NumPy's build-from-source page: https://numpy.org/devdocs/user/building.html. Open BLAS support building with function prefixes and suffixes and NumPy can recognize suffixes like "64_" when built with 64 bit int support. We could do something like this potentially, adding a suffix/prefix to BLAS functions and use those names in MXNet, but again it's much easier to link NumPy and MXNet to the same BLAS

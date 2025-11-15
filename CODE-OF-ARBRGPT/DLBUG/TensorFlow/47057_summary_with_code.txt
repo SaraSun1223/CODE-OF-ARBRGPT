@@ -1,0 +1,24 @@
+[Title] Conv2D output shape becomes fully dynamic when only input batch size is dynamic in tf-nightly
+
+### 1. System information
+
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Colab
+- TensorFlow installation (pip package or built from source): pip
+- TensorFlow library (version, if pip package or github SHA, if built from source): 2.4.1 v.s. nightly
+
+### 2. Code
+
+nightly: https://colab.research.google.com/drive/1r-vzh6JCIc5A4K8aYEbMZANWVrtSkKrF?usp=sharing
+2.4.1: https://colab.research.google.com/drive/1ODMv9joqc2ybsSdNHhGq1RWKXYsnFjd-?usp=sharing
+
+### 3. Failure after conversion
+
+Models are correct, but nightly has fully dynamic output shape and 2.4.1 has dynamic batch dim only.
+
+Nightly
+![image](https://user-images.githubusercontent.com/11615393/107465904-10ca1b80-6b18-11eb-9a96-9c7ba9254bcf.png)
+
+2.4.1
+![image](https://user-images.githubusercontent.com/11615393/107465944-1f183780-6b18-11eb-92ed-7befb0614e6b.png)
+
+1 here means dynamic dim (netron cannot show it precisely). It does not really matter in my use case though. Just a regression issue.

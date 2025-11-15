@@ -1,0 +1,26 @@
+[Title] Einsum modifies variables in-place
+
+## Issue description
+
+Einsum currently modifies variables in-place (without an explicit indication that it does so), which prevents pytorch from automatically backpropagating.
+
+## Code example
+
+```
+x = torch.randn(3, 3, requires_grad=True)
+z1 = torch.einsum("ij,jk->ik", (x, torch.randn(3, 3)))
+z2 = torch.einsum("ij,jk->ik", (x, torch.randn(3, 3)))
+z1.sum().backward()
+```
+
+Results in the following runtime error:
+
+`RuntimeError: one of the variables needed for gradient computation has been modified by an inplace operation`
+
+Demonstration and discussion can also be found [here](https://github.com/jonas-koehler/s2cnn/issues/9).
+
+- PyTorch or Caffe2: PyTorch
+- How you installed PyTorch (conda, pip, source): pip
+- OS:
+- PyTorch version: 0.4.0
+- Python version: 3.6.1

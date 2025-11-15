@@ -1,0 +1,146 @@
+[Title] Operator fusion breaks '+' operator on GPU with CachedOp
+
+## Description
+In some cases `broadcast_add` and `+` give different results. This issue seems to be new  in 1.6.
+
+## To Reproduce
+
+The following network gives the wrong outputs when hybridizing and running on a GPU.
+
+```python
+import mxnet as mx
+import numpy as np
+
+
+class MyModel(mx.gluon.HybridBlock):
+    def __init__(self) -> None:
+        super().__init__()
+        with self.name_scope():
+            self.cs = self.params.get_constant("cs", np.arange(10))
+
+    def hybrid_forward(self, F, dummy, cs):
+        u = F.broadcast_add(cs, dummy.zeros_like())
+
+        # r = F.broadcast_add(
+        #     F.slice_axis(u, axis=-1, begin=0, end=-1),
+        #     F.slice_axis(u, axis=-1, begin=1, end=None)
+        # ) / 2.0
+
+        r = (
+            F.slice_axis(u, axis=-1, begin=0, end=-1) +
+            F.slice_axis(u, axis=-1, begin=1, end=None)
+        ) / 2.0
+
+        return r
+
+
+def main():
+    ctx = mx.Context('gpu')
+    # ctx = mx.Context('cpu')
+
+    model = MyModel()
+    model.collect_params().initialize(mx.init.Xavier(), ctx=ctx)
+    print("hybridizing");  model.hybridize()
+
+    dummy = mx.nd.array(
+        [
+            np.ones(10),
+            np.ones(10),
+            np.ones(10),
+        ],
+        ctx=ctx
+    )
+    with mx.autograd.record():
+        out = model(dummy)
+        print(out.asnumpy())
+
+
+if __name__ == '__main__':
+    main()
+```
+
+It returns:
+```
+[[0.  1.  2.  3.  4.  5.  6.  7.  8. ]
+ [9.  0.  1.  2.  3.  4.  5.  6.  7. ]
+ [8.  9.  0.  0.5 1.  1.5 2.  2.5 3. ]]
+```
+
+The correct result is:
+```
+[[0.5 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5]
+ [0.5 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5]
+ [0.5 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5]]
+```
+
+Any of the following changes will give the correct result:
+- switch to cpu
+- don't hybridize
+- switch to `broadcast_add` instead of `+` (see code that is commented out)
+
+This did not happen on mxnet 1.5.
+
+I think it is related to the `get_constant` and broadcasting that happens before in the network. 
+
+## Environment
+
+```
+----------Python Info----------
+Version      : 3.6.5
+Compiler     : GCC 7.2.0
+Build        : ('default', 'Apr 29 2018 16:14:56')
+Arch         : ('64bit', '')
+------------Pip Info-----------
+Version      : 19.3.1
+Directory    : /home/ubuntu/anaconda3/envs/amazonei_mxnet_p36/lib/python3.6/site-packages/pip
+----------MXNet Info-----------
+Version      : 1.6.0
+Directory    : /home/ubuntu/anaconda3/envs/amazonei_mxnet_p36/lib/python3.6/site-packages/mxnet
+Num GPUs     : 1
+Commit Hash   : 6eec9da55c5096079355d1f1a5fa58dcf35d6752
+----------System Info----------
+Platform     : Linux-4.4.0-1104-aws-x86_64-with-debian-stretch-sid
+system       : Linux
+node         : ip-172-31-28-101
+release      : 4.4.0-1104-aws
+version      : #115-Ubuntu SMP Mon Mar 2 06:35:35 UTC 2020
+----------Hardware Info----------
+machine      : x86_64
+processor    : x86_64
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                8
+On-line CPU(s) list:   0-7
+Thread(s) per core:    2
+Core(s) per socket:    4
+Socket(s):             1
+NUMA node(s):          1
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 79
+Model name:            Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz
+Stepping:              1
+CPU MHz:               2213.210
+CPU max MHz:           3000.0000
+CPU min MHz:           1200.0000
+BogoMIPS:              4600.12
+Hypervisor vendor:     Xen
+Virtualization type:   full
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              256K
+L3 cache:              46080K
+NUMA node0 CPU(s):     0-7
+Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc aperfmperf pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch invpcid_single kaiser fsgsbase bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx xsaveopt
+----------Network Test----------
+Setting timeout: 10
+Timing for MXNet: https://github.com/apache/incubator-mxnet, DNS: 0.0022 sec, LOAD: 0.6087 sec.
+Timing for GluonNLP GitHub: https://github.com/dmlc/gluon-nlp, DNS: 0.0006 sec, LOAD: 0.5831 sec.
+Timing for GluonNLP: http://gluon-nlp.mxnet.io, DNS: 0.1805 sec, LOAD: 0.4238 sec.
+Timing for D2L: http://d2l.ai, DNS: 0.0274 sec, LOAD: 0.0487 sec.
+Timing for D2L (zh-cn): http://zh.d2l.ai, DNS: 0.0148 sec, LOAD: 0.1029 sec.
+Timing for FashionMNIST: https://repo.mxnet.io/gluon/dataset/fashion-mnist/train-labels-idx1-ubyte.gz, DNS: 0.1235 sec, LOAD: 0.1370 sec.
+Timing for PYPI: https://pypi.python.org/pypi/pip, DNS: 0.0178 sec, LOAD: 0.3628 sec.
+Timing for Conda: https://repo.continuum.io/pkgs/free/, DNS: 0.0015 sec, LOAD: 0.0679 sec.
+```

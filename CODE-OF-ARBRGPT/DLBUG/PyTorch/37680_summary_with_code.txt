@@ -1,0 +1,24 @@
+[Title] We should not mark non-floating point Tensors as requirering gradients, ever
+
+We should not make non-floating point Tensor require gradients as it is not supported.
+The fact that the backward function is an error is not enough as other ops following the faulty one are going to happily generate non-floating point Tensors that require gradients:
+
+```
+import torch
+from torch import nn
+
+t = torch.rand(10, requires_grad=True)
+bad = torch.argmax(t)
+
+res = bad + 2
+
+res.sum().backward()
+```
+
+Faulty ops:
+- argmax
+- argmin ?
+
+We should update the formulas to make sure the output does not require gradients but I am not even sure how argmax gets this not implemented node...
+
+cc @ezyang @gchanan @zou3519 @SsnL @albanD @gqchen

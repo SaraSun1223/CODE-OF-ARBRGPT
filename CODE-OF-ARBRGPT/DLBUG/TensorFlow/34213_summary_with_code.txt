@@ -1,0 +1,39 @@
+[Title] MultiWorkerMirroredStrategy distribution error BaseCollectiveExecutor__StartAbort Invalid argument_ Lower bound check fail for input 1 from node Mkl2Tf__30 to node scoped_allocator_concat_1_1
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): no-ish, [keras multi-worker mirrored example](https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras)
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Fedora Server 31
+- TensorFlow installed from (source or binary): source (master branch, commit 73a34133f6a414a03e54971f4975584c3d6251cc), identical on both machines
+- TensorFlow version (use command below): v1.12.1-17924-g73a34133f6 2.0.0
+- Python version: 3.7.5
+- Bazel version (if compiling from source): 1.1.0
+- GCC/Compiler version (if compiling from source): GCC 9.2.1
+- CUDA/cuDNN version: N/A
+- GPU model and memory: N/A
+
+**Describe the current behavior**
+Crashes at model.fit
+
+**Describe the expected behavior**
+Not, crash?
+
+**Code to reproduce the issue**
+Exact code used
+[Node0](https://pastebin.com/CtTjs146)
+[Node1](https://pastebin.com/5LtGA6Hd)
+
+**Other info / logs**
+Logs from run
+[Node0](https://pastebin.com/HQAQwtBg)
+[Node1](https://pastebin.com/ZFUjWkzf)
+
+To compile on Fedora 31 I did need to use a grpc version patch, this patch can be found [here](https://github.com/tensorflow/tensorflow/issues/33758#issuecomment-547867642) in issue #33758. It consists of running this command before compiling tensorflow.
+```
+curl -L https://github.com/tensorflow/tensorflow/compare/master...hi-ogawa:grpc-backport-pr-18950.patch | git apply
+```
+
+bazel configured with Python 3 directory, and default otherwise.
+bazel build command used is as follows
+```
+bazel build --config=mkl --config=opt //tensorflow/tools/pip_package:build_pip_package
+```

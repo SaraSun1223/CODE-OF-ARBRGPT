@@ -1,0 +1,63 @@
+[Title] [Numpy] Weird bug with mixed dtype
+
+Minimal reproducible example:
+
+```python
+import mxnet as mx
+from mxnet.gluon import nn
+import os
+os.environ['MXNET_EXEC_INPLACE_GRAD_SUM_CAP'] = '4'
+os.environ['DMLC_LOG_STACK_TRACE_DEPTH'] = '20'
+
+mx.npx.set_np()
+
+ctx = mx.gpu()
+
+batch_size = 2
+sequence_length = 10
+
+mask = mx.np.random.randint(0, 2, (batch_size, sequence_length), ctx=ctx)
+contextual_embeddings = mx.np.random.normal(0, 1, (2, sequence_length, 256), ctx=ctx, dtype=mx.np.float32)
+
+p_mask = 1 - mask
+
+l_start_scores = nn.Dense(1, flatten=False)
+l_end_scores = nn.Dense(1, flatten=False)
+l_start_scores.initialize(ctx=ctx)
+l_end_scores.initialize(ctx=ctx)
+with mx.autograd.record():
+    start_scores = mx.np.squeeze(l_start_scores(contextual_embeddings), -1)
+    start_logits = start_scores * p_mask + (1 - p_mask) * (-1e18)
+    contextual_embeddings = mx.np.expand_dims(contextual_embeddings, axis=1)  # (B, 1, T, C)
+    end_scores = l_end_scores(contextual_embeddings)
+    end_scores = mx.np.squeeze(end_scores, -1)
+    p_mask = mx.np.expand_dims(p_mask, axis=-1)
+    end_logits = p_mask * end_scores + (1 - p_mask) * -1e18
+    end_logits = end_logits * p_mask + (1 - p_mask) * -1e18
+    loss = end_logits.sum()
+loss.backward()
+mx.npx.waitall()
+```
+
+Error:
+```
+MXNetError: Traceback (most recent call last):
+  [bt] (14) /lib/x86_64-linux-gnu/libc.so.6(clone+0x3f) [0x7f1f4f32e88f]
+  [bt] (13) /lib/x86_64-linux-gnu/libpthread.so.0(+0x76db) [0x7f1f4eff56db]
+  [bt] (12) /usr/lib/x86_64-linux-gnu/libstdc++.so.6(+0xbd6df) [0x7f1e074b96df]
+  [bt] (11) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(std::thread::_State_impl<std::thread::_Invoker<std::tuple<std::function<void (std::shared_ptr<dmlc::ManualEvent>)>, std::shared_ptr<dmlc::ManualEvent> > > >::_M_run()+0x4a) [0x7f1e4cf17caa]
+  [bt] (10) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(std::_Function_handler<void (std::shared_ptr<dmlc::ManualEvent>), mxnet::engine::ThreadedEnginePerDevice::PushToExecute(mxnet::engine::OprBlock*, bool)::{lambda()#4}::operator()() const::{lambda(std::shared_ptr<dmlc::ManualEvent>)#1}>::_M_invoke(std::_Any_data const&, std::shared_ptr<dmlc::ManualEvent>&&)+0x4e) [0x7f1e4cf1c70e]
+  [bt] (9) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(void mxnet::engine::ThreadedEnginePerDevice::GPUWorker<(dmlc::ConcurrentQueueType)0>(mxnet::Context, bool, mxnet::engine::ThreadedEnginePerDevice::ThreadWorkerBlock<(dmlc::ConcurrentQueueType)0>*, std::shared_ptr<dmlc::ManualEvent> const&)+0x11d) [0x7f1e4cf1c44d]
+  [bt] (8) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(mxnet::engine::ThreadedEngine::ExecuteOprBlock(mxnet::RunContext, mxnet::engine::OprBlock*)+0x121) [0x7f1e4cf18cb1]
+  [bt] (7) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(std::_Function_handler<void (mxnet::RunContext, mxnet::engine::CallbackOnComplete), mxnet::engine::ThreadedEngine::BulkFlush()::{lambda(mxnet::RunContext, mxnet::engine::CallbackOnComplete)#1}>::_M_invoke(std::_Any_data const&, mxnet::RunContext&&, mxnet::engine::CallbackOnComplete&&)+0xba) [0x7f1e4cf111aa]
+  [bt] (6) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(std::_Function_handler<void (mxnet::RunContext), mxnet::imperative::PushFCompute(std::function<void (nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&)> const&, nnvm::Op const*, nnvm::NodeAttrs const&, mxnet::Context const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::Resource, std::allocator<mxnet::Resource> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<unsigned int, std::allocator<unsigned int> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&)::{lambda(mxnet::RunContext)#1}>::_M_invoke(std::_Any_data const&, mxnet::RunContext&&)+0x17) [0x7f1e4cfe33f7]
+  [bt] (5) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(mxnet::imperative::PushFComp
+ute(std::function<void (nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&)> const&, nnvm::Op const*, nnvm::NodeAttrs const&, mxnet::Context const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::engine::Var*, std::allocator<mxnet::engine::Var*> > const&, std::vector<mxnet::Resource, std::allocator<mxnet::Resource> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<unsigned int, std::allocator<unsigned int> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&)::{lambda(mxnet::RunContext)#1}::operator()(mxnet::RunContext) const+0x1559) [0x7f1e4cfe2cf9]
+  [bt] (4) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(std::enable_if<std::is_same<mshadow::gpu, mshadow::gpu>::value, void>::type mxnet::op::BinaryBroadcastBackwardUseNone<mshadow::gpu, mxnet::op::mshadow_op::identity, mxnet::op::mshadow_op::identity>(nnvm::NodeAttrs const&, mxnet::OpContext const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&, std::vector<mxnet::OpReqType, std::allocator<mxnet::OpReqType> > const&, std::vector<mxnet::TBlob, std::allocator<mxnet::TBlob> > const&)+0x71c) [0x7f1e574fb114]
+  [bt] (3) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(void mxnet::op::broadcast::Reduce<mshadow::red::sum, 2, float, mxnet::op::mshadow_op::identity, false>(mshadow::Stream<mshadow::gpu>*, mxnet::TBlob const&, mxnet::OpReqType, mshadow::Tensor<mshadow::gpu, 1, char> const&, mxnet::TBlob const&)+0xc2) [0x7f1e5338f583]
+  [bt] (2) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(void mxnet::op::broadcast::ReduceImpl<mshadow::red::sum, 2, float, float, float, mxnet::op::mshadow_op::identity>(CUstream_st*, mxnet::TBlob const&, mxnet::OpReqType, mxnet::TBlob const&, mshadow::Tensor<mshadow::gpu, 1, char> const&, mxnet::op::broadcast::ReduceImplConfig<2> const&)+0x262) [0x7f1e5340f75d]
+  [bt] (1) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(float* mxnet::TBlob::dptr<float>() const+0x160) [0x7f1e4ceba0a0]
+  [bt] (0) /home/ubuntu/mxnet/python/mxnet/../../build/libmxnet.so(dmlc::LogMessageFatal::~LogMessageFatal()+0x72) [0x7f1e4cd15852]
+  File "../include/mxnet/././tensor_blob.h", line 256
+MXNetError: Check failed: mshadow: :DataType<DType>::kFlag == type_flag_: TBlob.get_with_shape: data type do not match specified type.Expected: long long v.s. given float
+```

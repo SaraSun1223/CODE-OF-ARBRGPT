@@ -1,0 +1,31 @@
+[Title] [complex] torch.{sqrt, abs}_ does not match numpy
+
+Happens only on CPU
+
+**torch.cfloat**
+```python
+>>> import torch
+>>> torch.__version__
+'1.8.0a0+73e121d'
+>>> import numpy as np
+>>> x = torch.tensor(0.-1.0000e+20j)
+>>> x.sqrt()
+tensor(inf-infj)
+>>> np.sqrt(x.numpy())
+(7071067600-7071067600j)
+```
+
+**torch.cdouble**
+```python
+>>> import torch
+>>> x = torch.tensor(-1.0000e+20-4988429.2000j, dtype=torch.complex128)
+>>> x.sqrt()
+tensor(0.-1.0000e+10j, dtype=torch.complex128)
+>>> import numpy as np
+>>> np.sqrt(x.numpy())
+(0.00024942146-10000000000j)
+>>> x.cuda().sqrt().cpu().numpy() == np.sqrt(x.numpy())
+True
+```
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @heitorschueroff @anjali411 @dylanbespalko @mruberry @vishwakftw @jianyuh @nikitaved @pearu

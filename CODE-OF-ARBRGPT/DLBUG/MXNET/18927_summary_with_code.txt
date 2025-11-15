@@ -1,0 +1,72 @@
+[Title] Floating Point Exception mxnet.ndarray.contrib.bipartite_matching
+
+## Description
+(A clear and concise description of what the bug is.)
+* `mxnet.ndarray.contrib.bipartite_matching` gives floating point exception when input data's shape contains 0.
+* Curiously, it only gives floating point exception when 0 is at certain location in shape, and gives `dmlc::Error` for other locations. See the provided code snippets for example.
+### Error Message
+(Paste the complete error message. Please also include stack trace by setting environment variable `DMLC_LOG_STACK_TRACE_DEPTH=10` before running your script.)
+>Floating point exception(core dumped)
+## To Reproduce
+(If you developed your own code, please provide a short script that reproduces the error. For existing examples, please provide link.)
+The code below produces floating point exception:
+```python
+import mxnet as mx
+import numpy as np
+
+input = mx.nd.array(np.random.rand(0,2))
+mx.ndarray.contrib.bipartite_matching(input, threshold=0.1)
+```
+gives:
+>Floating point exception (core dumped)
+
+If swap the position of the 0 in shape, it gives `dmlc::Error` instead:
+```python
+import mxnet as mx
+import numpy as np
+
+input = mx.nd.array(np.random.rand(2,0))
+mx.ndarray.contrib.bipartite_matching(input, threshold=0.1)
+```
+gives:
+> terminate called after throwing an instance of 'dmlc::Error'
+  what():  [22:15:23] src/imperative/./imperative_utils.h:146: Operator _contrib_bipartite_matching inferring shapes failed.
+input shapes:
+[2,-1]
+output shapes:
+[2]
+[-1]
+operator attributes:
+threshold : 0.1
+Stack trace:
+  [bt] (0) /root/miniconda3/lib/python3.7/site-packages/mxnet/libmxnet.so(+0x307d3b) [0x7f5828e96d3b]
+  [bt] (1) /root/miniconda3/lib/python3.7/site-packages/mxnet/libmxnet.so(mxnet::imperative::SetShapeType(mxnet::Context const&, nnvm::NodeAttrs const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, std::vector<mxnet::NDArray*, std::allocator<mxnet::NDArray*> > const&, mxnet::DispatchMode*)+0x363b) [0x7f582c0323bb]
+Aborted (core dumped)
+
+### Steps to reproduce
+(Paste the commands you ran that produced the error.)
+
+1. run the above code snippets in python Interpreter or run it as a python script
+2.
+
+## What have you tried to solve it?
+
+1.
+2.
+
+## Environment
+
+We recommend using our script for collecting the diagnositc information. Run the following command and paste the outputs below:
+```
+curl --retry 10 -s https://raw.githubusercontent.com/dmlc/gluon-nlp/master/tools/diagnose.py | python
+
+# paste outputs here
+```
+I got 404 when trying to get the script.
+
+Some environment information:
+* OS: ubuntu 18.04
+* Python: 3.7.6
+* pip: 20.0.2
+* numpy: 1.18.5
+* mxnet: 1.6.0

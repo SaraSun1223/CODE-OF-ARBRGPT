@@ -1,0 +1,42 @@
+[Title] Wrong results for zero-length slices
+
+## Issue description
+
+Accessing tensors with zero-length slices gives wrong results.
+
+## Code example
+
+There are two problems that could have the same origin.
+
+First, using zero-length slices after other slices gives the wrong result:
+```python
+i = slice(0)
+x = torch.Tensor(range(8)).view(2, 2, 2)
+x[:, i]
+# Out: tensor([ 0.,  4.])
+# Correct result would be: tensor([])
+# Compare:
+x[0, i]
+# Out: tensor([])
+```
+
+Second, using zero-length slices prevents any further indexing:
+```python
+x[i, 0]
+# RuntimeError: dimension out of range (expected to be in range of [-1, 0], but got 1)
+```
+This is likely related to this feature request: https://github.com/pytorch/pytorch/issues/5014.
+
+## System Info
+
+PyTorch version: 0.4.0
+Is debug build: No
+OS: Mac OSX 10.13.4
+Python version: 3.6
+
+Versions of relevant libraries:
+[pip] numpy (1.14.3)
+[pip] torch (0.4.0)
+[pip] torchvision (0.2.1)
+[conda] pytorch                   0.4.0           py36_cuda0.0_cudnn0.0_1    pytorch
+[conda] torchvision               0.2.1                    py36_1    pytorch

@@ -1,0 +1,67 @@
+[Title] Topk backward twice (the second input is NAN) to trigger cuda assert.
+
+## 🐛 Bug
+
+Topk backward twice (the second input is NAN) to trigger cuda assert.
+
+## To Reproduce
+
+```
+import torch
+
+a = torch.ones(size=(5, ), device='cuda', requires_grad=True).cuda()
+out, _ = torch.topk(a, 2)
+out.mean().backward()
+print('step 1 backward with any value.')
+
+a = torch.full(size=(5, ), fill_value=float('nan'),
+               device='cuda', requires_grad=True).cuda()
+out, _ = torch.topk(a, 2)
+out.mean().backward()
+print('step 2 backward with NAN.')
+
+### output ###
+step 1 backward with any value.
+step 2 backward with NAN.
+/opt/conda/conda-bld/pytorch_1579040055865/work/aten/src/THC/THCTensorScatterGather.cu:130: void THCudaTensor_scatterKernel(TensorInfo<Real, IndexType>, TensorInfo<Real, IndexType>, TensorInfo<long, IndexType>, int, IndexType) [with IndexType = unsigned int, Real = float, Dims = 1]: block: [0,0,0], thread: [0,0,0] Assertion `indexValue >= 0 && indexValue < tensor.sizes[dim]` failed.
+```
+## Environment
+```
+PyTorch version: 1.4.0
+Is debug build: No
+CUDA used to build PyTorch: 10.0
+
+OS: Debian GNU/Linux 9.9 (stretch)
+GCC version: (Debian 6.3.0-18+deb9u1) 6.3.0 20170516
+CMake version: version 3.7.2
+
+Python version: 3.7
+Is CUDA available: Yes
+CUDA runtime version: 10.0.130
+GPU models and configuration: 
+GPU 0: GeForce GTX 1080 Ti
+GPU 1: GeForce GTX 1080 Ti
+GPU 2: GeForce GTX 1080 Ti
+GPU 3: GeForce GTX 1080 Ti
+
+Nvidia driver version: 410.48
+cuDNN version: Could not collect
+
+Versions of relevant libraries:
+[pip] efficientnet-pytorch==0.6.1
+[pip] numpy==1.18.1
+[pip] segmentation-models-pytorch==0.1.0
+[pip] torch==1.4.0
+[pip] torchvision==0.5.0
+[conda] blas                      1.0                         mkl    https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+[conda] efficientnet-pytorch      0.6.1                    pypi_0    pypi
+[conda] mkl                       2020.0                      166    https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+[conda] mkl-service               2.3.0            py37he904b0f_0    https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+[conda] mkl_fft                   1.0.15           py37ha843d7b_0    https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+[conda] mkl_random                1.1.0            py37hd6b4f25_0    https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+[conda] pytorch                   1.4.0           py3.7_cuda10.0.130_cudnn7.6.3_0    pytorch
+[conda] segmentation-models-pytorch 0.1.0                    pypi_0    pypi
+[conda] torchvision               0.5.0                py37_cu100    pytorch
+```
+
+cc @ezyang @gchanan @zou3519 @ngimel

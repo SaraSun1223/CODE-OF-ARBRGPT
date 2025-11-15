@@ -1,0 +1,49 @@
+[Title] tf.math.floordiv (__) is broken when inside @tf.function if second argument is 1.
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): No
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Linux Ubuntu 20.04
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device: /
+- TensorFlow installed from (source or binary): binary
+- TensorFlow version (use command below): 2.3.0
+- Python version: 3.7
+- Bazel version (if compiling from source): /
+- GCC/Compiler version (if compiling from source): /
+- CUDA/cuDNN version: 10.1
+- GPU model and memory: Titan Xp
+
+**Describe the current behavior**
+`tf.math.floordiv` produces different values if compiled with `experimental_compile=True` vs not
+
+**Describe the expected behavior**
+`tf.math.floordiv` should return the same values regardless of compilation method.
+
+**Standalone code to reproduce the issue**
+[colab](https://colab.research.google.com/drive/1RgVH3RaLmfcjdzKA5pDtpWhK-23tHmrX#scrollTo=2Iw5kpILGneG)
+```python
+import tensorflow as tf
+
+def floordiv(x, y):
+    # x // y
+    return tf.math.floordiv(x, y)
+
+@tf.function
+def floordiv_tffn(x, y):
+    # x // y
+    return tf.math.floordiv(x, y)
+
+@tf.function(experimental_compile=True)
+def floordiv_compiled(x, y):
+    # x // y
+    return tf.math.floordiv(x, y)
+
+x, y = tf.constant([0., 0.1, 0.9]), 1.
+print(floordiv(x, y))
+print(floordiv_tffn(x, y))
+print(floordiv_compiled(x, y))
+```
+```
+tf.Tensor([0. 0. 0.], shape=(3,), dtype=float32)
+tf.Tensor([0.  0.1 0.9], shape=(3,), dtype=float32)
+tf.Tensor([0. 0. 0.], shape=(3,), dtype=float32)
+```

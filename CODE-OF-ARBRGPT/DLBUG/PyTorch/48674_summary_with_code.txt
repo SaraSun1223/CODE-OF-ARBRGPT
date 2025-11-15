@@ -1,0 +1,20 @@
+[Title] `torch.jit.script` is often broken in Python-3.9
+
+Following example:
+```
+import torch
+def foo(x: torch.Tensor) -> float: 
+    return x[-3]
+bar=torch.jit.script(foo)
+print(bar(torch.rand((10,))))
+```
+fails in Python-3.9 with
+```
+torch.jit.frontend.NotSupportedError: ellipsis is not supported:
+  File "/home/conda/jit.py", line 3
+def foo(x: torch.Tensor) -> int:
+    return x[-3]
+           ~ <--- HERE
+```
+
+cc @gmagogsfm

@@ -1,0 +1,84 @@
+[Title] mm doesn't correctly check shape of GPU inputs
+
+## 🐛 Bug
+
+<!-- A clear and concise description of what the bug is. -->
+Setting default tensor type to `torch.cuda.DoubleTensor` results in undefined behavior (and wrong outputs) in case of shape mismatch.
+
+When passing a tensor of shape `(1, 1)` to a `nn.Linear(2, 1)`, it gives unpredictable results when using `torch.cuda.DoubleTenosr` as default. However, if using CPU tensor, it will give a *shape mismatch* error (as expected)
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+Run the following code on a fresh Google Colab notebook (with GPU instance selected):
+```python3
+import torch
+torch.set_default_tensor_type('torch.cuda.DoubleTensor')
+
+net = torch.nn.Linear(2, 1)
+print('a', net(torch.zeros(1, 1)).item(), net.state_dict())  
+print('b', net(torch.zeros(1, 1)).item(), net.state_dict())
+print('c', net(torch.zeros(1, 1)).item(), net.state_dict())
+```
+Every time this cell is executed, the output of `net(torch.zeros(1, 1))` will be different across the 3 `print` statements, indicating memory corruption and undefined behavior. One example output is:
+```
+a -0.17233398706512484 OrderedDict([('weight', tensor([[-0.4453,  0.4477]])), ('bias', tensor([-0.4219]))])
+b -0.22148397339085538 OrderedDict([('weight', tensor([[-0.4453,  0.4477]])), ('bias', tensor([-0.4219]))])
+c -0.22148397339085538 OrderedDict([('weight', tensor([[-0.4453,  0.4477]])), ('bias', tensor([-0.4219]))])
+```
+
+<!-- If you have a code sample, error messages, stack traces, please provide it here as well -->
+
+## Expected behavior
+
+A shape mismatch error should be raised, as it does when using CPU tensors.
+
+<!-- A clear and concise description of what you expected to happen. -->
+
+## Environment
+Collecting environment information...
+PyTorch version: 1.4.0
+Is debug build: False
+CUDA used to build PyTorch: 10.1
+ROCM used to build PyTorch: N/A
+
+OS: Ubuntu 18.04.5 LTS (x86_64)
+GCC version: (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+Clang version: 6.0.0-1ubuntu2 (tags/RELEASE_600/final)
+CMake version: version 3.12.0
+Libc version: glibc-2.15
+
+Python version: 2.7.17 (default, Feb 27 2021, 15:10:58)  [GCC 7.5.0] (64-bit runtime)
+Python platform: Linux-5.4.104+-x86_64-with-Ubuntu-18.04-bionic
+Is CUDA available: True
+CUDA runtime version: 11.0.221
+GPU models and configuration: GPU 0: Tesla P100-PCIE-16GB
+Nvidia driver version: 460.32.03
+cuDNN version: Probably one of the following:
+/usr/lib/x86_64-linux-gnu/libcudnn.so.7.6.5
+/usr/lib/x86_64-linux-gnu/libcudnn.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_train.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_ops_infer.so.8.0.4
+/usr/lib/x86_64-linux-gnu/libcudnn_ops_train.so.8.0.4
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] numpy==1.19.5
+[pip3] torch==1.9.0+cu102
+[pip3] torchsummary==1.5.1
+[pip3] torchtext==0.10.0
+[pip3] torchvision==0.10.0+cu102
+[conda] Could not collect
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+If we remove the call to `net.state_dict()` and don't call anything else, the output will be consistent across 3 consecutive `print()` statements.
+Memory corruption is likely the culprit.
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @jianyuh @nikitaved @pearu @mruberry @heitorschueroff @walterddr @IvanYashchuk @xwang233 @Lezcano

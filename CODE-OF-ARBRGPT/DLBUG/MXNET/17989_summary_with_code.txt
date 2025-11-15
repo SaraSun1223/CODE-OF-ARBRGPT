@@ -1,0 +1,77 @@
+[Title] [Autograd] Very serious bug of grad_req='add'
+
+Minimal reproducible example:
+
+```python
+import mxnet as mx
+from mxnet.gluon import nn, HybridBlock
+import numpy as np
+import argparse
+mx.npx.set_np()
+
+np.random.seed(123)
+mx.random.seed(123)
+
+
+parser = argparse.ArgumentParser(
+        description='Grad req bug minimal example')
+parser.add_argument('--addto', action='store_true')
+parser.add_argument('--hybridize', action='store_true')
+parser.add_argument('--nrepeat', type=int, default=5)
+args = parser.parse_args()
+
+class Foo(HybridBlock):
+    def __init__(self, prefix=None, params=None):
+        super().__init__(prefix=prefix, params=params)
+        with self.name_scope():
+            self.layer = nn.Dense(16)
+
+    def hybrid_forward(self, F, dat):
+        out = dat
+        for _ in range(args.nrepeat):
+            out = self.layer(out)
+        return out
+
+foo = Foo()
+if args.hybridize:
+   foo.hybridize()
+foo.initialize(ctx=mx.gpu())
+
+if args.grad_addto:
+    for p in foo.collect_params().values():
+        p.grad_req = 'add'
+foo.collect_params().zero_grad()
+
+
+dat = mx.np.random.normal(0, 1, (32, 16), ctx=mx.gpu())
+og = mx.np.random.normal(0, 1, (32, 16), ctx=mx.gpu())
+with mx.autograd.record():
+    out = foo(dat)
+    loss = (out * og).sum()
+    loss.backward()
+for k, v in foo.collect_params().items():
+    print(k, mx.np.linalg.norm(v.grad()))
+```
+
+The gradient will  be different when `add` is triggered. However, we should initialize the gradient as all zero.
+
+To reproduce the bug, we can use the following command:
+
+new script with zero_grad
+```bash
+wget https://gist.githubusercontent.com/sxjscience/0bd336c921396b3c66331354e1866886/raw/d618ba69cbecf04d3013db77af86c29d62fe0336/grad_req_addto_bug.py -O grad_req_addto_bug.py
+python grad_req_addto_bug.py --addto
+python grad_req_addto_bug.py
+
+```
+The output is 
+
+```
+ubuntu@ip-172-31-27-255:~$ python grad_req_addto_bug.py --addto
+
+foo0_dense0_weight 1.7802463
+foo0_dense0_bias 315.05945
+ubuntu@ip-172-31-27-255:~$ python grad_req_addto_bug.py
+foo0_dense0_weight 0.19310227
+foo0_dense0_bias 19.947094
+```

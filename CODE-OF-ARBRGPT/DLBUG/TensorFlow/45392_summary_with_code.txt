@@ -1,0 +1,34 @@
+[Title] tf.sparse.reorder crashes Tensorflow if number of possible entries of dense_shape overflows 64 bit int
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): Yes
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Ubuntu 18.04
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device:
+- TensorFlow installed from (source or binary): source
+- TensorFlow version (use command below): v1.12.1-38388-gea6516dcad 2.4.0
+- Python version: 3.7.6
+- Bazel version (if compiling from source): using bazelisk
+- GCC/Compiler version (if compiling from source): 7.5.0
+- CUDA/cuDNN version: 10.1
+- GPU model and memory: GeForce RTX 2080Ti, 11G
+
+**Describe the current behavior**
+
+`tf.sparse.reorder` crashes if number of possible entries of dense_shape overflows 64 bit int.
+
+**Describe the expected behavior**
+`tf.sparse.reorder` should not crash
+
+**Standalone code to reproduce the issue**
+
+```
+import tensorflow as tf
+t = tf.SparseTensor(indices=[[0, 0, 0, 0, 0, 0]], values=[0.0], dense_shape=[4096, 4096, 4096, 4096, 4096, 4096])
+tf.sparse.reorder(t)
+```
+
+https://colab.research.google.com/drive/1mfRgXxnMwskSTIZ7ctuAXXtYU430s8pg?usp=sharing
+
+**Other info / logs** Include any logs or source code that would be helpful to
+diagnose the problem. If including tracebacks, please include the full
+traceback. Large logs and files should be attached.

@@ -1,0 +1,91 @@
+[Title] GatherV2 checks batch_dims falsely in graph mode
+
+**Describe the current behavior**
+In graph mode, `GatherV2` checks `batch_dims` with the rank of `param`
+
+**Describe the expected behavior**
+By definition and the kernel implementation, should check
+`batch_dims` with the rank of `indices`
+
+**Standalone code to reproduce the issue**
+```python
+import tensorflow as tf
+import numpy as np
+
+@tf.function
+def gather_fn(x, indices, axis, batch_dims):
+    return tf.gather(x, indices, axis=axis, batch_dims=batch_dims)
+
+# 2-D input with shape (2, 3)
+x = tf.constant(np.arange(6).reshape(2, 3), dtype=tf.int32)
+# 3-D indices with shape (2, 1, 2)
+indices = tf.constant([[[0,1]], [[1,0]]], dtype=tf.int32)
+axis = 1
+batch_dims = -3
+# Eager mode computes correctly
+print('Eager gather:', tf.gather(x, indices, axis=axis, batch_dims=batch_dims))
+# Error in graph mode
+print('Function gather', gather_fn(x, indices, axis=axis, batch_dims=batch_dims))
+```
+
+**Other info / logs** 
+```
+Eager gather: tf.Tensor(
+[[[[0 1]]
+
+  [[1 0]]]
+
+
+ [[[3 4]]
+
+  [[4 3]]]], shape=(2, 2, 1, 2), dtype=int32)
+Traceback (most recent call last):
+  File "gather_function.py", line 14, in <module>
+    print('Function gather', gather_fn(x, indices, axis=axis, batch_dims=batch_dims))
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/def_function.py", line 580, in __call__
+    result = self._call(*args, **kwds)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/def_function.py", line 627, in _call
+    self._initialize(args, kwds, add_initializers_to=initializers)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/def_function.py", line 506, in _initialize
+    *args, **kwds))
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/function.py", line 2446, in _get_concrete_function_internal_garbage_collected
+    graph_function, _, _ = self._maybe_define_function(args, kwargs)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/function.py", line 2777, in _maybe_define_function
+    graph_function = self._create_graph_function(args, kwargs)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/function.py", line 2667, in _create_graph_function
+    capture_by_value=self._capture_by_value),
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/framework/func_graph.py", line 981, in func_graph_from_py_func
+    func_outputs = python_func(*func_args, **func_kwargs)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/eager/def_function.py", line 441, in wrapped_fn
+    return weak_wrapped_fn().__wrapped__(*args, **kwds)
+  File "/usr/local/lib/python3.7/site-packages/tensorflow/python/framework/func_graph.py", line 968, in wrapper
+    raise e.ag_error_metadata.to_exception(e)
+ValueError: in user code:
+
+    gather_function.py:6 gather_fn  *
+        return tf.gather(x, indices, axis=axis, batch_dims=batch_dims)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/util/dispatch.py:180 wrapper  **
+        return target(*args, **kwargs)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/ops/array_ops.py:4541 gather_v2
+        batch_dims=batch_dims)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/util/dispatch.py:180 wrapper
+        return target(*args, **kwargs)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/ops/array_ops.py:4518 gather
+        params, indices, axis, batch_dims=batch_dims, name=name)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/ops/gen_array_ops.py:3762 gather_v2
+        batch_dims=batch_dims, name=name)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/framework/op_def_library.py:744 _apply_op_helper
+        attrs=attr_protos, op_def=op_def)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/framework/func_graph.py:595 _create_op_internal
+        compute_device)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/framework/ops.py:3327 _create_op_internal
+        op_def=op_def)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/framework/ops.py:1817 __init__
+        control_input_ops, op_def)
+    /usr/local/lib/python3.7/site-packages/tensorflow/python/framework/ops.py:1657 _create_c_op
+        raise ValueError(str(e))
+
+    ValueError: Shape must be at least rank 3 but is rank 2 for '{{node GatherV2}} = GatherV2[Taxis=DT_INT32, Tindices=DT_INT32, Tparams=DT_INT32, batch_dims=-3](x, indices, GatherV2/axis)' with input shapes: [2,3], [2,1,2], [] and with computed input tensors: input[2] = <1>.
+```
+
+This issue might come from https://github.com/tensorflow/tensorflow/blob/e7d27d850737cc11235df1a206ee8bd3efab1761/tensorflow/core/ops/array_ops.cc#L1219-L1224

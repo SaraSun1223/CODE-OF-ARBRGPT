@@ -1,0 +1,27 @@
+[Title] convert_sync_batchnorm should respect device affinity
+
+`torch.nn.SyncBatchNorm.convert_sync_batchnorm` by default places newly created parameters on CPU even if all parameters of input model are on GPU. It might be better to respect input module's device affinity and place new parameters on the same device where the original `_BatchNorm` module resides.
+
+
+To reproduce:
+
+
+```python
+import torch
+module = torch.nn.Sequential(
+        torch.nn.Linear(20, 100),
+        torch.nn.BatchNorm1d(100)
+).cuda()
+print(set([p.device for p in module.parameters()]))
+sync_bn_module = torch.nn.SyncBatchNorm.convert_sync_batchnorm(module)
+print(set([p.device for p in sync_bn_module.parameters()]))
+```
+
+The output is:
+
+```
+{device(type='cuda', index=0)}
+{device(type='cuda', index=0), device(type='cpu')}
+```
+
+cc @albanD @mruberry

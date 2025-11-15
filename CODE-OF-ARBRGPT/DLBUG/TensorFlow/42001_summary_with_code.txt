@@ -1,0 +1,12 @@
+[Title] tf.string.format is not returning Unicode characters
+
+As also described in [this Stackoverflow post](https://stackoverflow.com/questions/59795552/tf-string-format-is-not-returning-unicode-characters), when a string passes through `tf.strings.format` unicode characters are not represented correctly.
+
+```python
+import tensorflow as tf
+
+print(tf.constant('😊:😊').numpy().decode('utf-8')) # output: 😊:😊
+print(tf.strings.format("😊:{}", tf.constant('😊')).numpy().decode('utf-8')) # output: 😊:"\\360\\237\\230\\212" 
+```
+
+Error observed in tensorflow 2.2 and 2.3

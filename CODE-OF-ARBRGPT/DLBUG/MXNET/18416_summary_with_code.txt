@@ -1,0 +1,22 @@
+[Title] [Numpy] np.where fails for scalar
+
+As title described,  a fatal error occurs when this operation encounters a scalar.  Same operation `nd.where` does not support scalar but only `nd.ndarray`.
+```
+import mxnet as mx
+mx.npx.set_np()
+condition = mx.np.array([1, 0, 1, 0, 1])
+x = mx.np.ones_like(condition)
+y = mx.np.zeros_like(condition)
+mx.np.where(condition, x, y)
+mx.np.where(condition, 1, 0)
+```
+Output:
+```
+array([1., 0., 1., 0., 1.])
+array([0., 0., 0., 0., 0.])
+```
+A worse result emerged as 
+```
+mx.np.where(condition, 2, 103)
+<<< array([103.,   0., 103.,   0., 103.])
+```

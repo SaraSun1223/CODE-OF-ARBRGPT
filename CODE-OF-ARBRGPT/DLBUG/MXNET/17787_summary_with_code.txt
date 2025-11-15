@@ -1,0 +1,20 @@
+[Title] [Numpy] np.clip does not support scalar
+
+As title
+
+```python
+>>> from mxnet import np, npx
+>>> npx.set_np()
+>>> np.clip(0.5, 0.1,1.0)
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/numpy/multiarray.py", line 6190, in clip
+    return _mx_nd_np.clip(a, a_min, a_max, out=out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/ndarray/numpy/_op.py", line 4358, in clip
+    return _npi.clip(a, a_min, a_max, out=out)
+  File "<string>", line 46, in clip
+AssertionError: Argument data must have NDArray type, but got 0.5
+>>> import numpy as onp
+>>> onp.clip(0.5, 0.1, 1.0)
+0.5
+```

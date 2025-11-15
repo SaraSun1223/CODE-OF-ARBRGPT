@@ -1,0 +1,105 @@
+[Title] clip_grad_norm_ fails when parameters are on different devices (1.5 regression)
+
+## 🐛 Bug
+
+In pytorch 1.4, `clip_grad_norm_` worked even when parameters were on different devices. Pytorch 1.5 no longer supports this, due to #32020.
+
+## To Reproduce
+
+```python
+#!/usr/bin/env python3
+
+import torch
+import torch.nn
+
+print(f"Torch version: {torch.__version__}")
+
+
+class MyModule(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layer1 = torch.nn.Linear(100, 50).to('cuda:0')
+        self.layer2 = torch.nn.Linear(50, 20).to('cuda:1')
+
+    def forward(self, x):
+        a = self.layer1(x)
+        b = self.layer2(a.to('cuda:1'))
+        return b
+
+
+m = MyModule()
+x = torch.randn(32, 100).to('cuda:0')
+loss = m(x).sum()
+loss.backward()
+print(torch.nn.utils.clip_grad_norm_(m.parameters(), 1.0))
+```
+
+Steps to reproduce the behavior:
+
+1. Run the above test on pytorch 1.5. Observe the crash.
+
+```
+# 1.4
+$ python cliptest.py
+Torch version: 1.4.0
+250.06218705107634
+
+# 1.5
+$ python cliptest.py
+Torch version: 1.5.0
+Traceback (most recent call last):
+  File "cliptest.py", line 25, in <module>
+    print(torch.nn.utils.clip_grad_norm_(m.parameters(), 1.0))
+  File "/private/home/roller/.conda/envs/pyt15/lib/python3.7/site-packages/torch/nn/utils/clip_grad.py", line 30, in clip_grad_norm_
+    total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]), norm_type)
+RuntimeError: All input tensors must be on the same device. Received cuda:0 and cuda:1
+```
+
+## Expected behavior
+
+Test case does not crash.
+
+## Environment
+
+FAIR cluster.
+
+```
+$ python -m torch.utils.collect_env
+Collecting environment information...
+PyTorch version: 1.5.0
+Is debug build: No
+CUDA used to build PyTorch: 10.1
+
+OS: Ubuntu 18.04.4 LTS
+GCC version: (Ubuntu 7.4.0-1ubuntu1~18.04.1) 7.4.0
+CMake version: version 3.10.2
+
+Python version: 3.7
+Is CUDA available: Yes
+CUDA runtime version: 10.1.105
+GPU models and configuration:
+GPU 0: Quadro GP100
+GPU 1: Quadro GP100
+
+Nvidia driver version: 418.116.00
+cuDNN version: Could not collect
+
+Versions of relevant libraries:
+[pip] numpy==1.18.1
+[pip] torch==1.5.0
+[pip] torchvision==0.6.0a0+82fd1c8
+[conda] blas                      1.0                         mkl
+[conda] mkl                       2020.1                      217
+[conda] mkl-service               2.3.0            py37he904b0f_0
+[conda] mkl_fft                   1.0.15           py37ha843d7b_0
+[conda] mkl_random                1.1.0            py37hd6b4f25_0
+[conda] pytorch                   1.5.0           py3.7_cuda10.1.243_cudnn7.6.3_0    pytorch
+[conda] torchvision               0.6.0                py37_cu101    pytorch
+```
+
+## Additional context
+
+This is a pretty hard break for model parallelism.
+
+
+cc @ezyang @gchanan @zou3519 @ngimel

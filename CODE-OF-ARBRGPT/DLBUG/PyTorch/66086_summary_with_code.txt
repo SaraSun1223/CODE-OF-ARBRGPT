@@ -1,0 +1,65 @@
+[Title] Backwards compatibility is broken between 1.9.1 and nightly for `torch.cosine_similarity`
+
+## 🐛 Bug
+
+<!-- A clear and concise description of what the bug is. -->
+
+The function `torch.cosine_similarity` allowed tensor input of differing shapes in torch 1.9.1. In the nightly version for 1.10, this does not seem to be allowed anymore. This breaks backwards compatibility - is this intended here?
+
+## To Reproduce
+
+1.) Install `torch 1.9.1`:
+
+```
+pip3 install torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
+```
+
+Run:
+
+```python
+import torch
+torch.cosine_similarity(torch.ones((10, 2, 3, 4)), torch.ones((2, 3, 4)), dim=-1)
+```
+
+=> works fine
+
+2.) Install `torch-nightly` for `torch 1.10`:
+
+```
+pip3 install --pre torch torchvision torchaudio -f https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+```
+
+Run the same function:
+
+```python
+import torch
+torch.cosine_similarity(torch.ones((10, 2, 3, 4)), torch.ones((2, 3, 4)), dim=-1)
+```
+
+=> This function now returns an error:
+
+```
+RuntimeError: cosine_similarity requires both inputs to have the same number of dimensions, but x1 has 4 and x2 has 3
+```
+
+## Expected behavior
+
+Is it intended that backwards compatibility is not kept here?
+
+## Environment
+
+ - PyTorch Version (e.g., 1.0): 1.9.1 
+ - OS (e.g., Linux): Linux
+ - How you installed PyTorch (`conda`, `pip`, source): `pip`
+ - Build command you used (if compiling from source): see above
+ - Python version: Python 3.9.1
+ - CUDA/cuDNN version: CPU
+ - GPU models and configuration: /
+ - Any other relevant information:
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser

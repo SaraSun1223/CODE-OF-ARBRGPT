@@ -1,0 +1,55 @@
+[Title] max_pool1d crashes (segfault)
+
+## 🐛 Bug
+
+A call to max_pool1d crashes on my machine, on CPU and GPU.
+
+## To Reproduce
+
+Run the code
+
+    import torch
+    from torch.nn import functional as F
+    x = torch.rand(2500, 100, 4).permute(0, 2, 1)
+    F.max_pool1d(x, 1)
+
+## Environment
+
+PyTorch version: 1.7.0
+Is debug build: True
+CUDA used to build PyTorch: 11.0
+ROCM used to build PyTorch: N/A
+
+OS: Debian GNU/Linux 9.13 (stretch) (x86_64)
+GCC version: (Debian 6.3.0-18+deb9u1) 6.3.0 20170516
+Clang version: Could not collect
+CMake version: version 3.7.2
+
+Python version: 3.8 (64-bit runtime)
+Is CUDA available: True
+CUDA runtime version: Could not collect
+GPU models and configuration: GPU 0: GeForce GTX 1080
+Nvidia driver version: 455.23.05
+cuDNN version: Could not collect
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] numpy==1.19.2
+[pip3] torch==1.7.0
+[pip3] torchaudio==0.7.0a0+ac17b64
+[pip3] torchvision==0.8.1
+[conda] blas                      1.0                         mkl  
+[conda] cudatoolkit               11.0.221             h6bb024c_0  
+[conda] mkl                       2020.2                      256  
+[conda] mkl-service               2.3.0            py38he904b0f_0  
+[conda] mkl_fft                   1.2.0            py38h23d657b_0  
+[conda] mkl_random                1.1.1            py38h0573a6f_0  
+[conda] numpy                     1.19.2           py38h54aff64_0  
+[conda] numpy-base                1.19.2           py38hfa32c7d_0  
+[conda] pytorch                   1.7.0           py3.8_cuda11.0.221_cudnn8.0.3_0    pytorch
+[conda] torchaudio                0.7.0                      py38    pytorch
+[conda] torchvision               0.8.1                py38_cu110    pytorch
+
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @heitorschueroff

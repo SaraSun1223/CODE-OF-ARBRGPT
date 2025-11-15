@@ -1,0 +1,40 @@
+[Title] _RuntimeError_ Expected tensor to have CUDA Backend, but got tensor with CUDA Backend_
+
+## Issue description
+
+The error message [here](https://github.com/pytorch/pytorch/blob/aa214a8b8cc8bb7fa0a655499a709fc580e417db/aten/src/ATen/TensorUtils.cpp#L232) should say "expected X, but got Y" instead of "expected X, but got X". Currently `toString(t.type().backend())` is printed both times.
+
+## Code example
+
+To reproduce:
+```python
+import torch
+torch.where(torch.tensor([1], dtype=torch.uint8).cuda(), torch.zeros(1).cpu(), torch.zeros(1).cpu())
+```
+
+## System Info
+PyTorch version: 0.4.0
+Is debug build: No
+CUDA used to build PyTorch: 9.0.176
+
+OS: Ubuntu 16.04.3 LTS
+GCC version: (Ubuntu 5.4.0-6ubuntu1~16.04.9) 5.4.0 20160609
+CMake version: version 3.5.1
+
+Python version: 3.6
+Is CUDA available: Yes
+CUDA runtime version: Could not collect
+GPU models and configuration:
+GPU 0: Quadro GP100
+GPU 1: Quadro GP100
+
+Nvidia driver version: 384.81
+cuDNN version: Could not collect
+
+Versions of relevant libraries:
+[pip] numpy (1.14.3)
+[pip] torch (0.4.0)
+[pip] torchvision (0.2.1)
+[conda] cuda90 1.0 h6433d27_0 pytorch
+[conda] pytorch 0.4.0 py36_cuda9.0.176_cudnn7.1.2_1 [cuda90] pytorch
+[conda] torchvision 0.2.1 py36_1 pytorch

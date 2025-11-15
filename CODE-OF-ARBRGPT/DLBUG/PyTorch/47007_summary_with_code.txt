@@ -1,0 +1,46 @@
+[Title] RuntimeError_ _mul_cuda_ not implemented for 'Bool'
+
+## 🐛 Bug
+
+I just upgraded to PyTorch 1.7 and I now get an this error when multiplying a Python bool with a cuda bool tensor. I do not get the error on CPU. Furthermore, it was working well on the previous version (1.6).
+
+## To Reproduce
+
+![image](https://user-images.githubusercontent.com/1090012/97480979-88d65200-192a-11eb-8414-4afe5eb7be71.png)
+
+## Environment
+
+Collecting environment information...
+PyTorch version: 1.7.0+cu110
+Is debug build: True
+CUDA used to build PyTorch: 11.0
+ROCM used to build PyTorch: N/A
+
+OS: Ubuntu 20.04.1 LTS (x86_64)
+GCC version: (Ubuntu 9.3.0-10ubuntu2) 9.3.0
+Clang version: Could not collect
+CMake version: Could not collect
+
+Python version: 3.8 (64-bit runtime)
+Is CUDA available: True
+CUDA runtime version: Could not collect
+GPU models and configuration: 
+GPU 0: GeForce GTX 1080 Ti
+GPU 1: GeForce GTX 1080 Ti
+GPU 2: GeForce GT 1030
+
+Nvidia driver version: 450.51.06
+cuDNN version: Could not collect
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] numpy==1.18.5
+[pip3] torch==1.7.0+cu110
+[pip3] torchaudio==0.7.0
+[pip3] torchvision==0.8.1+cu110
+[conda] Could not collect
+
+
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @heitorschueroff @izdeby

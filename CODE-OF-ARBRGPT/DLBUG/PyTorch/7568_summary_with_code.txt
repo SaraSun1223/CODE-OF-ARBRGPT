@@ -1,0 +1,46 @@
+[Title] [Bug report] error when using weight_norm and DataParallel at the same time.
+
+## Issue description
+
+When I try to use weight_norm (dim=None) and DataParallel to use multiple gpus at the same time, there is an error:
+![image](https://user-images.githubusercontent.com/10334851/40043728-f9492b84-5857-11e8-960f-a8e88e8b5913.png)
+
+
+
+After digging into the code,  I found the reason is that the "weight_g" in weight_norm (dim=None) is a 0-dim tensor. This is due to the line 10 in torch/nn/utils/weight_norm.py: `return p.norm()`.
+`norm()` returns a 0-dim tensor (scalar) in pytorch0.4.0, while in pytorch0.3.0, it returns a 1-dim tensor.
+The 0-dim "weight_g" somehow generates the above error when replicating across multiple gpus as in the line 12 of torch/nn/parallel/replicate.py: "param_copies = Broadcast.apply(devices, *params)"
+
+for now, my solution is to reshape the "weight_g" into a 1-dim tensor by changing `return p.norm()` in the line 10 of torch/nn/utils/weight_norm.py into `return p.norm().view(-1)`. It solves the error.
+
+## Code example
+```
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+import torch
+from torch import nn
+from torch.nn.utils import weight_norm
+
+device = torch.device('cuda')
+model = weight_norm(nn.Linear(20, 30), dim=None)
+model = nn.DataParallel(model).to(device)
+
+x = torch.rand(40, 20).to(device)
+y = model(x)
+loss = y.mean()
+loss.backward()
+```
+
+## System Info
+
+- PyTorch or Caffe2: PyTorch 
+- How you installed PyTorch (conda, pip, source): pip
+- Build command you used (if compiling from source):
+- OS: Ubuntu 16.04
+- PyTorch version: 0.4.0
+- Python version: 2.7
+- CUDA/cuDNN version: 8.0
+- GPU models and configuration:
+- GCC version (if compiling from source):
+- CMake version:
+- Versions of any other relevant libraries:

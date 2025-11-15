@@ -1,0 +1,17 @@
+[Title] Speed Regression in torch.qr
+
+## 🐛 Bug
+
+I'm seeing some pretty serious (~5-10x) speed regressions for `torch.qr` on master compared to the anaconda release with the following test code:
+```python
+a = torch.randn(1000, 10)
+%timeit q, r = torch.qr(a)
+```
+On release PyTorch:
+```
+253 ms ± 274 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+```
+And on master:
+```                                                                                                                                                                                 
+2.66 s ± 509 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+```

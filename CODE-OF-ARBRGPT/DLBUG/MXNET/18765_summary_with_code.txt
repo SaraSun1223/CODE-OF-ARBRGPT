@@ -1,0 +1,79 @@
+[Title] Race-condition and crash with SymbolBlock on GPU
+
+## Description
+Severe Bug with nn.SymbolBlock when ctx=mx.gpu(0), cpu is OK.
+
+### Error Message
+malloc or free or Segmentation fault error may appears randomly
+```
+/home/xxxxxx/anaconda3/envs/solo/lib/python3.7/site-packages/mxnet/gluon/block.py:1517: UserWarning: Cannot decide type for the following arguments. Consider providing them as input:
+        data: None
+  input_sym_arg_type = in_param.infer_type()[0]
+[17:15:59] src/operator/nn/./cudnn/./cudnn_algoreg-inl.h:97: Running performance tests to find the best convolution algorithm, this can take a while... (set the environment variable MXNET_CUDNN_AUTOTUNE_DEFAULT to 0 to disable)
+[(1, 256, 56, 56), (1, 512, 28, 28), (1, 1024, 14, 14), (1, 2048, 7, 7)]
+malloc(): unsorted double linked list corrupted
+[1]    87116 abort (core dumped)  python symbolblockbug.py
+
+```
+
+```
+/home/xxxxxx/anaconda3/envs/solo/lib/python3.7/site-packages/mxnet/gluon/block.py:1517: UserWarning: Cannot decide type for the following arguments. Consider providing them as input:
+        data: None
+  input_sym_arg_type = in_param.infer_type()[0]
+[17:21:29] src/operator/nn/./cudnn/./cudnn_algoreg-inl.h:97: Running performance tests to find the best convolution algorithm, this can take a while... (set the environment variable MXNET_CUDNN_AUTOTUNE_DEFAULT to 0 to disable)
+[(1, 256, 56, 56), (1, 512, 28, 28), (1, 1024, 14, 14), (1, 2048, 7, 7)]
+
+Segmentation fault: 11
+
+```
+
+```
+/home/xxxxxx/anaconda3/envs/solo/lib/python3.7/site-packages/mxnet/gluon/block.py:1517: UserWarning: Cannot decide type for the following arguments. Consider providing them as input:
+        data: None
+  input_sym_arg_type = in_param.infer_type()[0]
+[17:23:24] src/operator/nn/./cudnn/./cudnn_algoreg-inl.h:97: Running performance tests to find the best convolution algorithm, this can take a while... (set the environment variable MXNET_CUDNN_AUTOTUNE_DEFAULT to 0 to disable)
+[(1, 256, 56, 56), (1, 512, 28, 28), (1, 1024, 14, 14), (1, 2048, 7, 7)]
+malloc_consolidate(): invalid chunk size
+[1]    87701 abort (core dumped)  python symbolblockbug.py
+
+```
+## To Reproduce
+```python
+import mxnet as mx
+from mxnet import gluon
+from mxnet.gluon import nn
+import gluoncv as gcv
+class NetEncoder(nn.SymbolBlock):
+    def __init__(self, **kwargs):
+        base_network = gcv.model_zoo.resnet50_v1(pretrained=False)
+        outputs = ['stage1_activation2', 'stage2_activation3', 'stage3_activation5',
+                            'stage4_activation2']
+
+        inputs, outputs, params = gcv.nn.feature._parse_network(
+            base_network, outputs, ['data'], pretrained=False, ctx=mx.cpu(), **kwargs)
+        super(NetEncoder, self).__init__(outputs, inputs, params=params)
+    
+class Foo(nn.HybridBlock):
+    def __init__(self):
+        super(Foo, self).__init__()
+        self.features = NetEncoder()
+
+    def hybrid_forward(self, F, x):
+        y = self.features(x)
+        return y
+
+a = mx.nd.random.uniform(shape=(1,3,224,224), ctx=mx.gpu(0))
+
+f = Foo()
+f.collect_params().initialize()
+f.hybridize()
+f.collect_params().reset_ctx(mx.gpu(0))
+b = f(a)
+print([x.shape for x in b])
+```
+
+
+
+## Environment
+1. mxnet_cu102-1.7.0b20200719-py2.py3-none-manylinux2014_x86_64
+2. mxnet 2.0 master in April

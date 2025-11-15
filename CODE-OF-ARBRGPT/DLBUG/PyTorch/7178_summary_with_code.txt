@@ -1,0 +1,23 @@
+[Title] Should torch.load and torch.save take a device (since PyTorch 0.4)
+
+Reading the [PyTorch 0.4.0 migration guide](https://pytorch.org/2018/04/22/0_4_0-migration-guide.html) I came across the [`torch.device`](https://pytorch.org/docs/stable/tensor_attributes.html) abstraction.
+
+It is great for creating a device once and then passing it around and using the `.to` functions, e.g. as in:
+
+```python
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+inputs = data.to(device)
+```
+
+The [`torch.load`](https://github.com/pytorch/pytorch/blob/d564ecb4a515e34184c976617f57b2eb01665660/torch/serialization.py#L241) function does not take a device, though. Instead it takes a `map_location` argument which can either be a lambda, a mapping, or since https://github.com/pytorch/pytorch/pull/4203 it can be a string like `'cpu'`.
+
+Now the question is why are there these two different concepts and can they be unified into one device abstraction? Otherwise we can pass the device around _except_ for serialization where we need to transform the device abstraction into a `map_location` parameter.
+
+Can we unify these concepts behind an API like the following?
+
+```python
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+restored = torch.load('model.pth', device=device)
+```
+
+Related: https://github.com/pytorch/pytorch/issues/6630 - `torch.save` should also take a device

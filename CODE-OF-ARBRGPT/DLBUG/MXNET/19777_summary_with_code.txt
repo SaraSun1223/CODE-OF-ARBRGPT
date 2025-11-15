@@ -1,0 +1,112 @@
+## Description
+I used `np.pad()` just for some basic operations, but it fails without giving any informative error message. I tried different inputs, but the function fails every time. 
+
+### Error Message
+```shell
+terminate called after throwing an instance of 'dmlc::Error'
+  what():  [09:43:08] ../include/mxnet/runtime/object.h:809: Check failed: ref->template IsInstance<typename SubRef::ContainerType>(): Downcast from
+```
+
+## To Reproduce
+```python
+from mxnet import np, npx
+npx.set_np()
+
+A = np.array([1, 2, 3, 4])
+np.pad(A, pad_width=(1, 2))
+```
+
+## Environment
+
+<details>
+<summary>Environment Information</summary>
+
+```
+----------Python Info----------
+Version      : 3.6.9
+Compiler     : GCC 8.4.0
+Build        : ('default', 'Oct  8 2020 12:12:24')
+Arch         : ('64bit', 'ELF')
+------------Pip Info-----------
+Version      : 20.3.3
+Directory    : /home/ubuntu/env/nlp/lib/python3.6/site-packages/pip
+----------MXNet Info-----------
+Version      : 2.0.0
+Directory    : /home/ubuntu/env/nlp/lib/python3.6/site-packages/mxnet
+Commit hash file "/home/ubuntu/env/nlp/lib/python3.6/site-packages/mxnet/COMMIT_HASH" not found. Not installed from pre-built package or built from source.
+Library      : ['/home/ubuntu/env/nlp/lib/python3.6/site-packages/mxnet/libmxnet.so']
+Build features:
+✔ CUDA
+✔ CUDNN
+✖ NCCL
+✖ TENSORRT
+✖ CUTENSOR
+✔ CPU_SSE
+✔ CPU_SSE2
+✔ CPU_SSE3
+✖ CPU_SSE4_1
+✖ CPU_SSE4_2
+✖ CPU_SSE4A
+✖ CPU_AVX
+✖ CPU_AVX2
+✔ OPENMP
+✖ SSE
+✖ F16C
+✖ JEMALLOC
+✔ BLAS_OPEN
+✖ BLAS_ATLAS
+✖ BLAS_MKL
+✖ BLAS_APPLE
+✔ LAPACK
+✔ MKLDNN
+✔ OPENCV
+✔ DIST_KVSTORE
+✔ INT64_TENSOR_SIZE
+✔ SIGNAL_HANDLER
+✖ DEBUG
+✖ TVM_OP
+----------System Info----------
+Platform     : Linux-5.4.0-1034-aws-x86_64-with-Ubuntu-18.04-bionic
+system       : Linux
+node         : ip-10-21-7-56
+release      : 5.4.0-1034-aws
+version      : #35~18.04.1-Ubuntu SMP Fri Dec 18 01:06:34 UTC 2020
+----------Hardware Info----------
+machine      : x86_64
+processor    : x86_64
+Architecture:        x86_64
+CPU op-mode(s):      32-bit, 64-bit
+Byte Order:          Little Endian
+CPU(s):              8
+On-line CPU(s) list: 0-7
+Thread(s) per core:  2
+Core(s) per socket:  4
+Socket(s):           1
+NUMA node(s):        1
+Vendor ID:           GenuineIntel
+CPU family:          6
+Model:               85
+Model name:          Intel(R) Xeon(R) Platinum 8259CL CPU @ 2.50GHz
+Stepping:            7
+CPU MHz:             3193.734
+BogoMIPS:            4999.99
+Hypervisor vendor:   KVM
+Virtualization type: full
+L1d cache:           32K
+L1i cache:           32K
+L2 cache:            1024K
+L3 cache:            36608K
+NUMA node0 CPU(s):   0-7
+Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch invpcid_single pti fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves ida arat pku ospke avx512_vnni
+----------Network Test----------
+Setting timeout: 10
+Timing for MXNet: https://github.com/apache/incubator-mxnet, DNS: 0.0017 sec, LOAD: 0.5337 sec.
+Timing for Gluon Tutorial(en): http://gluon.mxnet.io, DNS: 0.2078 sec, LOAD: 0.1377 sec.
+Error open Gluon Tutorial(cn): https://zh.gluon.ai, <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:852)>, DNS finished in 0.04438376426696777 sec.
+Timing for FashionMNIST: https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/gluon/dataset/fashion-mnist/train-labels-idx1-ubyte.gz, DNS: 0.0067 sec, LOAD: 0.1069 sec.
+Timing for PYPI: https://pypi.python.org/pypi/pip, DNS: 0.0014 sec, LOAD: 0.2587 sec.
+Error open Conda: https://repo.continuum.io/pkgs/free/, HTTP Error 403: Forbidden, DNS finished in 0.021787643432617188 sec.
+----------Environment----------
+```
+
+</details>

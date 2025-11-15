@@ -1,0 +1,25 @@
+
+Ignore the following reproducible and see the comment later.
+```python
+import mxnet as mx
+mx.npx.set_np()
+net = mx.gluon.nn.Dense(16, in_units=16)
+net.cast("float16")
+net.initialize(ctx=mx.gpu())
+net.hybridize()
+net(mx.np.random.normal(0, 1, (16, 16), dtype=mx.np.float16, ctx=mx.gpu()))
+```
+
+Error:
+```
+MXNetError: Traceback (most recent call last):
+  File "../src/imperative/./imperative_utils.h", line 306
+MXNetError: Check failed: outputs[i]->dtype() == out_types[i] (2 vs. 0) : 0-th output has invalid dtype. Expecting 0 got 2 in operator _npi_uniform
+```
+
+Root cause:
+https://github.com/apache/incubator-mxnet/blob/fb73de7582de4e622299a4ad045e25f771568193/python/mxnet/initializer.py#L510
+
+This should be changed to `uniform_fn(-self.scale, self.scale, arr.shape, dtype=arr.dtype, out=arr)`
+
+@mk-61 This should also be related to AMP.

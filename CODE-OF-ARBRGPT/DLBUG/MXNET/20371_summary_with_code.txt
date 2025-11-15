@@ -1,0 +1,138 @@
+## Description
+- When the input's `shape=()`, the backward log_sigmoid activation is incorrect
+- There is an error when run the log_sigmoid in gpu.
+
+### Error Message And To Reproduce
+```
+git clone --recursive https://github.com/apache/incubator-mxnet
+rm -rf build
+mkdir -p build && cd build
+cmake -GNinja \
+    -DUSE_CUDA=OFF \
+    -DUSE_MKL_IF_AVAILABLE=ON \
+    -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_BUILD_TYPE=Release \
+..
+ninja
+```
+Use the following code to test.  Reference: https://github.com/apache/incubator-mxnet/blob/master/tests/python/unittest/test_numpy_op.py
+```
+import numpy as _np
+import mxnet as mx
+from mxnet import np, npx
+from mxnet.gluon import HybridBlock
+from mxnet.base import MXNetError
+from mxnet.test_utils import same, assert_almost_equal, rand_shape_nd, rand_ndarray
+from mxnet.test_utils import check_numeric_gradient, use_np, collapse_sum_like, effective_dtype
+@use_np
+def test_activation():
+    def np_log_sigmoid(a):
+        return _np.log(_np.divide(1.0, _np.add(1.0, _np.exp(-a))))
+    def np_log_sigmoid_grad(a):
+        return _np.divide(1.0, _np.add(1.0, _np.exp(a)))
+
+    class TestLogSigmoid(HybridBlock):
+        def __init__(self):
+            super(TestLogSigmoid, self).__init__()
+
+        def hybrid_forward(self, F, a):
+            return F.npx.activation(a, act_type='log_sigmoid')
+
+    shape = ()
+    # shape = (1,)
+    test_log_sigmoid = TestLogSigmoid()
+    x = mx.np.random.uniform(low=-1.0, high=1.0, size=shape)
+    x.attach_grad()
+    np_out = np_log_sigmoid(x.asnumpy())
+    with mx.autograd.record():
+        mx_out = test_log_sigmoid(x)
+    assert mx_out.shape == np_out.shape
+    assert_almost_equal(mx_out.asnumpy(), np_out, rtol=1e-3, atol=1e-5)
+    mx_out.backward()
+    np_backward = np_log_sigmoid_grad(x.asnumpy())
+    print(np_backward)
+    print(x.grad.asnumpy())
+    assert_almost_equal(x.grad.asnumpy(), np_backward, rtol=1e-3, atol=1e-5)
+
+    mx_out = npx.activation(x, act_type='log_sigmoid')
+    np_out = np_log_sigmoid(x.asnumpy())
+    assert_almost_equal(mx_out.asnumpy(), np_out, rtol=1e-3, atol=1e-5)
+@use_np
+def test_activation_gpu():
+    def np_log_sigmoid(a):
+        return _np.log(_np.divide(1.0, _np.add(1.0, _np.exp(-a))))
+    def np_log_sigmoid_grad(a):
+        return _np.divide(1.0, _np.add(1.0, _np.exp(a)))
+
+    class TestLogSigmoid(HybridBlock):
+        def __init__(self):
+            super(TestLogSigmoid, self).__init__()
+
+        def hybrid_forward(self, F, a):
+            return F.npx.activation(a, act_type='log_sigmoid')
+
+    # shape = ()
+    shape = (1,)
+    test_log_sigmoid = TestLogSigmoid()
+    x = mx.np.random.uniform(low=-1.0, high=1.0, size=shape, ctx=mx.gpu())
+    x.attach_grad()
+    np_out = np_log_sigmoid(x.asnumpy())
+    with mx.autograd.record():
+        mx_out = test_log_sigmoid(x)
+    assert mx_out.shape == np_out.shape
+    assert_almost_equal(mx_out.asnumpy(), np_out, rtol=1e-3, atol=1e-5)
+    mx_out.backward()
+    np_backward = np_log_sigmoid_grad(x.asnumpy())
+    print(np_backward)
+    print(x.grad.asnumpy())
+    assert_almost_equal(x.grad.asnumpy(), np_backward, rtol=1e-3, atol=1e-5)
+
+    mx_out = npx.activation(x, act_type='log_sigmoid')
+    np_out = np_log_sigmoid(x.asnumpy())
+    assert_almost_equal(mx_out.asnumpy(), np_out, rtol=1e-3, atol=1e-5)
+```
+
+When run `test_activation()`, the error message is:
+```
+Traceback (most recent call last):
+  File "log_sigmoid_backward_bug.py", line 191, in <module>
+    test_activation()
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/util.py", line 299, in _with_np_shape
+    return func(*args, **kwargs)
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/util.py", line 480, in _with_np_array
+    return func(*args, **kwargs)
+  File "log_sigmoid_backward_bug.py", line 62, in test_activation
+    assert_almost_equal(x.grad.asnumpy(), np_backward, rtol=1e-3, atol=1e-5)
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/test_utils.py", line 740, in assert_almost_equal
+    raise AssertionError(msg)
+AssertionError: 
+Items are not equal:
+Error 371.466237 exceeds tolerance rtol=1.000000e-03, atol=1.000000e-05.
+
+ ACTUAL: array(0.65600127, dtype=float32)
+ DESIRED: 0.47561258889520563
+```
+But it can success when the `shape=(1,)` running  on CPU.
+When run `test_activation_gpu()`, the error message is:
+```
+[19:24:54] ../src/base.cc:80: cuDNN lib mismatch: linked-against version 8005 != compiled-against version 8004.  Set MXNET_CUDNN_LIB_CHECKING=0 to quiet this warning.
+[19:24:57] ../src/storage/storage.cc:199: Using Pooled (Naive) StorageManager for GPU
+Traceback (most recent call last):
+  File "log_sigmoid_backward_bug.py", line 153, in <module>
+    test_activation_gpu()
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/util.py", line 299, in _with_np_shape
+    return func(*args, **kwargs)
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/util.py", line 480, in _with_np_array
+    return func(*args, **kwargs)
+  File "log_sigmoid_backward_bug.py", line 65, in test_activation_gpu
+    assert_almost_equal(mx_out.asnumpy(), np_out, rtol=1e-3, atol=1e-5)
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/ndarray/ndarray.py", line 2626, in asnumpy
+    ctypes.c_size_t(data.size)))
+  File "/home/lthpc/anaconda3/lib/python3.6/site-packages/mxnet/base.py", line 246, in check_call
+    raise get_last_ffi_error()
+mxnet.base.MXNetError: Traceback (most recent call last):
+  File "../src/operator/nn/./cudnn/cudnn_activation-inl.h", line 61
+MXNetError: Not implmented
+```

@@ -1,0 +1,26 @@
+[Title] Closing tar file in `TarFileReader` breaks buffered datapipes
+
+```python
+from torch.utils.data.datapipes.iter import IterableWrapper, TarArchiveReader, FileLoader, Shuffler
+
+# instantiate dp from any tar archive, 
+# e.g. https://github.com/pytorch/data/blob/main/examples/vision/fakedata/caltech101/101_ObjectCategories.tar.gz
+dp = FileLoader(dp)
+dp = TarArchiveReader(dp)
+dp = Shuffler(dp)
+
+_, buffer = next(iter(dp))
+buffer.read()
+```
+
+```
+ValueError: seek of closed file
+```
+
+If the `buffer_size` of `Shuffler` exceeds the number of files in the tar archive, this triggers
+
+https://github.com/pytorch/pytorch/blob/07d5d7b5cc83422913958a78eb5c8c60ae181be0/torch/utils/data/datapipes/iter/tararchivereader.py#L59-L60
+
+which also makes it impossible to read from the files within the closed archive.
+
+This was introduced in #64788. cc @SsnL @VitalyFedyunin @ejguan @NivekT

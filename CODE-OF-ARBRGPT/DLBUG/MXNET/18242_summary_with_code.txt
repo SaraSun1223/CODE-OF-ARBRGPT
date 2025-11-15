@@ -1,0 +1,76 @@
+[Title] [Numpy] np.random.normal_gumbel_logistic broken after FFI update
+
+## Description
+```
+>>> from mxnet import np, npx
+>>> npx.set_np()
+>>> np.random.normal(0, np.ones((2,2)))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/numpy/random.py", line 203, in normal
+    return _mx_nd_np.random.normal(loc, scale, size, dtype, ctx, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/ndarray/numpy/random.py", line 178, in normal
+    return _api_internal.normal(loc, scale, size, ctx, dtype, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/_ffi/_ctypes/function.py", line 115, in __call__
+    raise get_last_ffi_error()
+mxnet.base.MXNetError: Traceback (most recent call last):
+  File "../include/mxnet/runtime/packed_func.h", line 521
+MXNetError: Check failed: type_code_ == kNDArrayHandle (0 vs. 11) : expected NDArray but get int
+>>> np.random.gumbel(np.ones((2,2)))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/numpy/random.py", line 368, in gumbel
+    return _mx_nd_np.random.gumbel(loc, scale, size, ctx, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/ndarray/numpy/random.py", line 288, in gumbel
+    return _api_internal.gumbel(loc, scale, size, ctx, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/_ffi/_ctypes/function.py", line 115, in __call__
+    raise get_last_ffi_error()
+mxnet.base.MXNetError: Traceback (most recent call last):
+  File "../include/mxnet/runtime/packed_func.h", line 398
+MXNetError: Check failed: type_code_ == kDLFloat (11 vs. 2) : expected float but get NDArray
+>>> np.random.logistic(np.ones((2,2)))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/numpy/random.py", line 309, in logistic
+    return _mx_nd_np.random.logistic(loc, scale, size, ctx, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/ndarray/numpy/random.py", line 251, in logistic
+    return _api_internal.logistic(loc, scale, size, ctx, out)
+  File "/home/ubuntu/mxnet_master_develop/python/mxnet/_ffi/_ctypes/function.py", line 115, in __call__
+    raise get_last_ffi_error()
+mxnet.base.MXNetError: Traceback (most recent call last):
+  File "../include/mxnet/runtime/packed_func.h", line 398
+MXNetError: Check failed: type_code_ == kDLFloat (11 vs. 2) : expected float but get NDArray
+```
+
+Also, the output shape of np.random.gumbel does not look right
+```
+>>> np.random.gumbel(np.ones((2,2)), np.ones((2,2)))
+array([1.680763])
+```
+
+
+### Error Message
+(Paste the complete error message. Please also include stack trace by setting environment variable `DMLC_LOG_STACK_TRACE_DEPTH=10` before running your script.)
+
+## To Reproduce
+(If you developed your own code, please provide a short script that reproduces the error. For existing examples, please provide link.)
+
+### Steps to reproduce
+(Paste the commands you ran that produced the error.)
+
+1.
+2.
+
+## What have you tried to solve it?
+
+1.
+2.
+
+## Environment
+
+We recommend using our script for collecting the diagnositc information. Run the following command and paste the outputs below:
+```
+curl --retry 10 -s https://raw.githubusercontent.com/dmlc/gluon-nlp/master/tools/diagnose.py | python
+
+# paste outputs here
+```

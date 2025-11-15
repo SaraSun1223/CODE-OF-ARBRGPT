@@ -1,0 +1,44 @@
+[Title] tf.ragged.range and  tf.range crash (abort) when `start` is large
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): No
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Linux Ubuntu 18.04
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device: N/A
+- TensorFlow installed from (source or binary): binary
+- TensorFlow version (use command below):2.1.0
+- Python version:3.7.6
+- Bazel version (if compiling from source):N/A
+- GCC/Compiler version (if compiling from source):N/A
+- CUDA/cuDNN version:N/A
+- GPU model and memory:N/A
+
+**Describe the current behavior**
+`tf.ragged.range` and  `tf.range`  crash (abort) when `start` is large
+
+**Describe the expected behavior**
+expect an exception message if the input unexpected instead of crash
+
+**Standalone code to reproduce the issue**
+~~~python
+import tensorflow as tf
+tf.range(start=-1e+38, limit=1)
+~~~
+Output:
+~~~python
+2021-02-03 22:29:09.074233: F tensorflow/core/framework/tensor_shape.cc:345] Check failed: size >= 0 (-9223372036854775808 vs. 0)
+Aborted (core dumped)
+~~~
+
+
+
+
+~~~python
+import tensorflow as tf
+tf.ragged.range(starts=1e+38)
+~~~
+
+Output:
+~~~python
+2021-02-03 22:28:53.789455: F tensorflow/core/framework/tensor_shape.cc:345] Check failed: size >= 0 (-9223372036854775808 vs. 0)
+Aborted (core dumped)
+~~~

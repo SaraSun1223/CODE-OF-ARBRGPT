@@ -1,0 +1,28 @@
+[Title] `tensor.align_to` error message is wrong
+
+## 🐛 Bug
+
+`torch.align_to` only supports fully named inputs; all input dimensions must have a name. When passing it an unnamed input, it errors out with the following message:
+
+```
+In [32]: x = torch.randn(3, 3)
+
+In [33]: x.align_to('N', 'C')
+---------------------------------------------------------------------------
+RuntimeError                              Traceback (most recent call last)
+<ipython-input-33-eaf7b6ed77c5> in <module>()
+----> 1 x.align_to('N', 'C')
+
+~/pytorch/pytorch/torch/tensor.py in align_to(self, *names)
+    525
+    526             >>> tensor = torch.randn(2, 3, 5, 7, 11)
+--> 527             >>> tensor = tensor.refine_names('A', ..., 'B', 'C')
+    528             >>> tensor.names
+    529             ('A', None, None, 'B', 'C')
+
+RuntimeError: align_to: All input dims must be named. Found unnamed dim at index None of Tensor[None, None]
+```
+
+# Expected behavior
+
+It should really say "Found unnamed dim at index 0 of Tensor[None, None]".

@@ -1,0 +1,234 @@
+## Description
+For a hybridized HybridBlock, the new forward interface throws an error for zero-size input
+
+### Error Message
+```
+MXNetError: MXNetError: Shape inconsistent, Provided = [2,4,0,128], inferred shape=[2,4,4,128]
+```
+<details>
+<summary>Complete error</summary>
+---> 17 model(np.zeros((2, 2, 4, 0, 128)))
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+~/mxnet/python/mxnet/gluon/block.py in __call__(self, x, *args)
+   1427
+   1428             with x.ctx:
+-> 1429                 return self._call_cached_op(x, *args)
+   1430
+   1431     def forward(self, x, *args):
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+~/mxnet/python/mxnet/gluon/block.py in _call_cached_op(self, *args)
+   1096     def _call_cached_op(self, *args):
+   1097         if self._cached_op is None:
+-> 1098             self._build_cache(*args)
+   1099         assert self._cached_op, "Gluon failed to build the cache. " \
+   1100                                 "This should never happen. " \
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+~/mxnet/python/mxnet/gluon/block.py in _build_cache(self, *args)
+    993
+    994     def _build_cache(self, *args):
+--> 995         data, out = self._get_graph(*args)
+    996         data_names = {data.name: i for i, data in enumerate(data)}
+    997         params = {p.var().name: p for p in self.collect_params().values()}
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+~/mxnet/python/mxnet/gluon/block.py in _get_graph(self, *args)
+    989                 return self._get_graph_v1(*args)
+    990             else:  # Gluon 2 based on deferred compute mode
+--> 991                 return self._get_graph_v2(*args)
+    992         return self._cached_graph
+    993
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+~/mxnet/python/mxnet/gluon/block.py in _get_graph_v2(self, *args)
+    978             args = _regroup(flatten_args, self._in_format)
+    979             with autograd.pause(), dc.context():
+--> 980                 out = super().__call__(*args)
+    981             flatten_out, self._out_format = _flatten(out, "output")
+    982             symbol_outputs = dc.get_symbol(flatten_out, sym_cls=type(symbol_inputs[0]))
+
+~/mxnet/python/mxnet/gluon/block.py in __call__(self, *args)
+    709             hook(self, args)
+    710
+--> 711         out = self.forward(*args)
+    712
+    713         for hook in self._forward_hooks.values():
+
+~/mxnet/python/mxnet/util.py in _with_np_shape(*args, **kwargs)
+    296         def _with_np_shape(*args, **kwargs):
+    297             with np_shape(active=True):
+--> 298                 return func(*args, **kwargs)
+    299         return _with_np_shape
+    300     else:
+
+~/mxnet/python/mxnet/util.py in _with_np_array(*args, **kwargs)
+    480         def _with_np_array(*args, **kwargs):
+    481             with np_array(active=True):
+--> 482                 return func(*args, **kwargs)
+    483         return _with_np_array
+    484     else:
+
+<ipython-input-1-164fad6d3e22> in forward(self, x)
+      8         super().__init__()
+      9     def forward(self, x):
+---> 10         return x[0]
+     11
+     12
+
+~/mxnet/python/mxnet/numpy/multiarray.py in __getitem__(self, key)
+    743                     'index {} is out of bounds for axis 0 with size {}'.format(
+    744                         key, shape[0]))
+--> 745             return self._at(key)
+    746         elif isinstance(key, py_slice):
+    747             # Unlike numpy/_symbol.py, calls MXNDArraySlice64 writable memory
+
+~/mxnet/python/mxnet/ndarray/ndarray.py in _at(self, idx)
+   1423         else:
+   1424             check_call(_LIB.MXNDArrayAt(
+-> 1425                 self.handle, ctypes.c_uint32(idx), ctypes.byref(handle)))
+   1426         return self.__class__(handle=handle, writable=self.writable)
+   1427
+
+~/mxnet/python/mxnet/base.py in check_call(ret)
+    244     """
+    245     if ret != 0:
+--> 246         raise get_last_ffi_error()
+    247
+    248
+
+MXNetError: MXNetError: Shape inconsistent, Provided = [2,4,0,128], inferred shape=[2,4,4,128]
+</details>
+
+## To Reproduce
+
+Run the following script
+
+```
+from mxnet import np, npx, gluon, use_np
+
+npx.set_np()
+
+@use_np
+class TestModel(gluon.HybridBlock):
+    def __init__(self):
+        super().__init__()
+    def forward(self, x):
+        return x[0]
+
+
+model = TestModel()
+model.initialize()
+model.hybridize()
+
+model(np.zeros((2, 2, 4, 0, 128)))
+```
+
+## Environment
+
+<details>
+<summary>Environment Information</summary>
+
+```
+----------Python Info----------
+('Version      :', '3.7.8')
+('Compiler     :', 'GCC 4.2.1 Compatible Apple LLVM 11.0.3 (clang-1103.0.29.20) (-macos10.15-objc-')
+('Build        :', ('default', 'Jun  5 2020 22:59:21'))
+('Arch         :', ('64bit', ''))
+------------Pip Info-----------
+No corresponding pip install for current python.
+----------MXNet Info-----------
+No MXNet installed.
+----------System Info----------
+('Platform     :', 'Darwin-19.6.0-x86_64-i386-64bit')
+('system       :', 'Darwin')
+('node         :', 'a483e79ab3ab')
+('release      :', '19.6.0')
+('version      :', 'Darwin Kernel Version 19.6.0: Mon Aug 31 22:12:52 PDT 2020; root:xnu-6153.141.2~1/RELEASE_X86_64')
+----------Hardware Info----------
+('machine      :', 'x86_64')
+('processor    :', 'i386')
+machdep.cpu.brand_string: Intel(R) Core(TM) i7-8569U CPU @ 2.80GHz
+machdep.cpu.features: FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C
+machdep.cpu.leaf7_features: RDWRFSGS TSC_THREAD_OFFSET SGX BMI1 AVX2 SMEP BMI2 ERMS INVPCID FPU_CSDS MPX RDSEED ADX SMAP CLFSOPT IPT MDCLEAR TSXFA IBRS STIBP L1DF SSBD
+machdep.cpu.extfeatures: SYSCALL XD 1GBPAGE EM64T LAHF LZCNT PREFETCHW RDTSCP TSCI
+----------Network Test----------
+Setting timeout: 10
+Timing for MXNet: https://github.com/apache/incubator-mxnet, DNS: 0.0040 sec, LOAD: 2.5430 sec.
+Timing for PYPI: https://pypi.python.org/pypi/pip, DNS: 0.6464 sec, LOAD: 9.0609 sec.
+Timing for FashionMNIST: https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/gluon/dataset/fashion-mnist/train-labels-idx1-ubyte.gz, DNS: 0.0006 sec, LOAD: 2.1972 sec.
+Error open Conda: https://repo.continuum.io/pkgs/free/, HTTP Error 403: Forbidden, DNS finished in 0.000483989715576 sec.
+Timing for Gluon Tutorial(en): http://gluon.mxnet.io, DNS: 0.0009 sec, LOAD: 2.8254 sec.
+Error open Gluon Tutorial(cn): https://zh.gluon.ai, <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:727)>, DNS finished in 0.00119805335999 sec.
+----------Environment----------
+CC="/usr/local/opt/llvm/bin/clang"
+CXX="/usr/local/opt/llvm/bin/clang++"
+```
+
+</details>

@@ -1,0 +1,34 @@
+[Title] Numpy Equal Broadcast Type Large Int Bug
+
+```python
+import mxnet
+from mxnet import np, npx
+
+INT_OVERFLOW = 2**31
+
+A = np.array([INT_OVERFLOW], dtype='int64')
+assert A == INT_OVERFLOW
+
+```
+triggers
+```
+ubuntu@ip-172-31-38-169:~/incubator-mxnet$ python shapearray.py 
+[22:46:12] ../src/storage/storage.cc:198: Using Pooled (Naive) StorageManager for CPU
+Traceback (most recent call last):
+  File "shapearray.py", line 10, in <module>
+    assert A == INT_OVERFLOW
+  File "/home/ubuntu/incubator-mxnet/python/mxnet/numpy/multiarray.py", line 260, in _wrap_mxnp_np_ufunc
+    return func(x1, x2)
+  File "/home/ubuntu/incubator-mxnet/python/mxnet/numpy/multiarray.py", line 1119, in __eq__
+    return equal(self, other)
+  File "/home/ubuntu/incubator-mxnet/python/mxnet/numpy/multiarray.py", line 9089, in equal
+    return _mx_nd_np.equal(x1, x2, out)
+  File "/home/ubuntu/incubator-mxnet/python/mxnet/ndarray/numpy/_op.py", line 7168, in equal
+    return _api_internal.equal(x1, x2, out)
+  File "/home/ubuntu/incubator-mxnet/python/mxnet/_ffi/_ctypes/function.py", line 115, in __call__
+    raise get_last_ffi_error()
+mxnet.base.MXNetError: Traceback (most recent call last):
+  File "../include/mxnet/runtime/packed_func.h", line 412
+MXNetError: Check failed: value_.v_int64 <= std: :numeric_limits<int>::max() (2147483648 vs. 2147483647) : 
+```
+I am working on a simple fix on this specific use case but there might be similar issues when broadcasting arrays

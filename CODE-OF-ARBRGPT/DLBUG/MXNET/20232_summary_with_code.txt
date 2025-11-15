@@ -1,0 +1,128 @@
+## Description
+`np.apply_along_axis` func cannot work.
+
+### Error Message
+```
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+<ipython-input-5-d8dd664ae53f> in <module>
+----> 1 np.apply_along_axis(lambda x: x.mean(), axis=1, arr=data)
+
+<__array_function__ internals> in apply_along_axis(*args, **kwargs)
+
+~/.pyenv/versions/anaconda3-2020.11/lib/python3.8/site-packages/mxnet/numpy/multiarray.py in __array_function__(self, func, types, args, kwargs)
+    287             new_args, cur_ctx = _as_onp_array(args)
+    288             if cur_ctx is None:
+--> 289                 raise ValueError('Unknown context for the input ndarrays. It is probably a bug. Please'
+    290                                  ' create an issue on GitHub.')
+    291             new_kwargs = {}
+
+ValueError: Unknown context for the input ndarrays. It is probably a bug. Please create an issue on GitHub.
+```
+## To Reproduce
+(If you developed your own code, please provide a short script that reproduces the error. For existing examples, please provide link.)
+```python
+from mxnet import np, npx
+npx.set_np()
+np.apply_along_axis(lambda x: x.mean(), axis=1, arr=data)
+```
+
+### Steps to reproduce
+(Paste the commands you ran that produced the error.)
+
+1. open terminal
+2. get into ipython console
+3. run code written above
+
+## What have you tried to solve it?
+
+1. I've tries origin numpy method, codes written below
+```python
+import numpy as np
+data = np.array([[1,2,3.], [4.,5.,6]])
+print(np.apply_along_axis(lambda x: x.mean(), axis=1, arr=data))
+```
+2. Codes just worked.
+
+## Environment
+
+***We recommend using our script for collecting the diagnostic information with the following command***
+`curl --retry 10 -s https://raw.githubusercontent.com/apache/incubator-mxnet/master/tools/diagnose.py | python3`
+
+<details>
+<summary>Environment Information</summary>
+
+```
+----------Python Info----------
+Version      : 3.8.5
+Compiler     : Clang 10.0.0
+Build        : ('default', 'Sep  4 2020 02:22:02')
+Arch         : ('64bit', '')
+------------Pip Info-----------
+Version      : 20.2.4
+Directory    : /Users/huchen/.pyenv/versions/anaconda3-2020.11/lib/python3.8/site-packages/pip
+----------MXNet Info-----------
+Version      : 1.7.0
+Directory    : /Users/huchen/.pyenv/versions/anaconda3-2020.11/lib/python3.8/site-packages/mxnet
+Commit Hash   : 64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+Library      : ['/Users/huchen/.pyenv/versions/anaconda3-2020.11/lib/python3.8/site-packages/mxnet/libmxnet.dylib']
+Build features:
+✖ CUDA
+✖ CUDNN
+✖ NCCL
+✖ CUDA_RTC
+✖ TENSORRT
+✔ CPU_SSE
+✔ CPU_SSE2
+✔ CPU_SSE3
+✔ CPU_SSE4_1
+✖ CPU_SSE4_2
+✖ CPU_SSE4A
+✖ CPU_AVX
+✖ CPU_AVX2
+✖ OPENMP
+✖ SSE
+✖ F16C
+✖ JEMALLOC
+✖ BLAS_OPEN
+✖ BLAS_ATLAS
+✖ BLAS_MKL
+✔ BLAS_APPLE
+✔ LAPACK
+✔ MKLDNN
+✔ OPENCV
+✖ CAFFE
+✖ PROFILER
+✖ DIST_KVSTORE
+✖ CXX14
+✖ INT64_TENSOR_SIZE
+✔ SIGNAL_HANDLER
+✖ DEBUG
+✖ TVM_OP
+----------System Info----------
+Platform     : macOS-10.16-x86_64-i386-64bit
+system       : Darwin
+node         : huchendeMacBook-Pro.local
+release      : 20.4.0
+version      : Darwin Kernel Version 20.4.0: Fri Mar  5 01:14:14 PST 2021; root:xnu-7195.101.1~3/RELEASE_X86_64
+----------Hardware Info----------
+machine      : x86_64
+processor    : i386
+b'machdep.cpu.brand_string: Intel(R) Core(TM) i9-9880H CPU @ 2.30GHz'
+b'machdep.cpu.extfeatures: SYSCALL XD 1GBPAGE EM64T LAHF LZCNT PREFETCHW RDTSCP TSCI'
+b'machdep.cpu.features: FPU VME DE PSE TSC MSR PAE MCE CX8 APIC SEP MTRR PGE MCA CMOV PAT PSE36 CLFSH DS ACPI MMX FXSR SSE SSE2 SS HTT TM PBE SSE3 PCLMULQDQ DTES64 MON DSCPL VMX SMX EST TM2 SSSE3 FMA CX16 TPR PDCM SSE4.1 SSE4.2 x2APIC MOVBE POPCNT AES PCID XSAVE OSXSAVE SEGLIM64 TSCTMR AVX1.0 RDRAND F16C'
+b'machdep.cpu.leaf7_features: RDWRFSGS TSC_THREAD_OFFSET SGX BMI1 AVX2 SMEP BMI2 ERMS INVPCID FPU_CSDS MPX RDSEED ADX SMAP CLFSOPT IPT SGXLC MDCLEAR IBRS STIBP L1DF ACAPMSR SSBD'
+----------Network Test----------
+Setting timeout: 10
+Error open MXNet: https://github.com/apache/incubator-mxnet, <urlopen error timed out>, DNS finished in 0.0015480518341064453 sec.
+Timing for Gluon Tutorial(en): http://gluon.mxnet.io, DNS: 1.2265 sec, LOAD: 1.3418 sec.
+Error open Gluon Tutorial(cn): https://zh.gluon.ai, <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1123)>, DNS finished in 1.5046992301940918 sec.
+Timing for FashionMNIST: https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/gluon/dataset/fashion-mnist/train-labels-idx1-ubyte.gz, DNS: 1.2228 sec, LOAD: 1.0874 sec.
+Timing for PYPI: https://pypi.python.org/pypi/pip, DNS: 0.0275 sec, LOAD: 1.6053 sec.
+Error open Conda: https://repo.continuum.io/pkgs/free/, HTTP Error 403: Forbidden, DNS finished in 0.27584004402160645 sec.
+----------Environment----------
+KMP_DUPLICATE_LIB_OK="True"
+KMP_INIT_AT_FORK="FALSE"
+```
+
+</details>

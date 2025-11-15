@@ -1,0 +1,160 @@
+## Description
+MaskRCNN second stage has a deconv layer - implemented as **Conv2DTranspose** (in GLUON-CV).
+By examination of this layer you will see that it contains a bias, but does not really use it.
+It is weird, because the bias is actually exist but is not really needed. So although, in the layer kwargs the default of **no_bias=False**, and the deconv layer in the mask-rcnn has the default value:
+``` class mxnet.gluon.nn.Conv2D(channels, kernel_size, strides=(1, 1), padding=(0, 0), dilation=(1, 1), groups=1, layout='NCHW', activation=None, use_bias=True, weight_initializer=None, bias_initializer='zeros', in_channels=0, **kwargs)[source]
+```
+In inference time the bias is not used.
+
+### Error Message
+No error message, the problem is with the Conv2DTranspose Operation
+
+## To Reproduce
+```python
+import gluoncv
+name = "mask_rcnn_resnet18_v1b_coco"
+mask_rcnn = gluoncv.model_zoo.get_model(name, pretrained=True, ctx=mx.cpu(0))
+mask_rcnn.mask.deconv._kwargs
+```
+This will give you the deconv layer args where you will find no_bias=False
+Further inspection will show the existence of a bias:
+```python
+mask_rcnn.mask.deconv.weight.data().shape
+```
+Now in order to see that it doesn't use the bias the fastest approach is to re-initialize the bias and examine the results. If it is the same as the original results, than the bias didn't influence at all and therefore is not used:
+```python
+import gluoncv
+from gluoncv import model_zoo, data, utils
+rom matplotlib import pyplot as plt
+import mxnet as mx
+import numpy as np
+
+name = "mask_rcnn_resnet18_v1b_coco"
+mask_rcnn = gluoncv.model_zoo.get_model(name, pretrained=True, ctx=mx.cpu(0))
+mask_rcnn.mask.deconv.bias.initialize(init.Constant(mx.nd.zeros(256)), force_reinit=True)
+x, orig_img = data.transforms.presets.rcnn.load_test("biking-600.jpg")  # Replace biking-600.jpg with a real image path that you have
+ids, scores, bboxes, masks = [xx[0].asnumpy() for xx in mask_rcnn(x)]
+
+# paint segmentation mask on images directly
+width, height = orig_img.shape[1], orig_img.shape[0]
+masks, _ = utils.viz.expand_mask(masks, bboxes, (width, height), scores)
+orig_img = utils.viz.plot_mask(orig_img, masks)
+# identical to Faster RCNN object detection
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(1, 1, 1)
+ax = utils.viz.plot_bbox(orig_img, bboxes, scores, ids,
+                         class_names=mask_rcnn.classes, ax=ax)
+plt.show()
+print(np.sum(masks)) # This value stays the same whether you reinitialize the bias or not - which means it is not used
+print(np.sum(scores))
+print(np.sum(bboxes))
+```
+
+## Environment
+<details>
+<summary>Environment Information</summary>
+
+```
+----------Python Info----------
+Version      : 3.6.11
+Compiler     : GCC 5.4.0 20160609
+Build        : ('default', 'Jun 29 2020 05:15:03')
+Arch         : ('64bit', 'ELF')
+------------Pip Info-----------
+Version      : 20.2.4
+Directory    : /home/tamirt/venv3.6/lib/python3.6/site-packages/pip
+----------MXNet Info-----------
+Version      : 1.7.0
+Directory    : /home/tamirt/venv3.6/lib/python3.6/site-packages/mxnet
+Commit Hash   : 64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+64f737cdd59fe88d2c5b479f25d011c5156b6a8a
+Library      : ['/home/tamirt/venv3.6/lib/python3.6/site-packages/mxnet/libmxnet.so']
+Build features:
+✖ CUDA
+✖ CUDNN
+✖ NCCL
+✖ CUDA_RTC
+✖ TENSORRT
+✔ CPU_SSE
+✔ CPU_SSE2
+✔ CPU_SSE3
+✔ CPU_SSE4_1
+✔ CPU_SSE4_2
+✖ CPU_SSE4A
+✔ CPU_AVX
+✖ CPU_AVX2
+✔ OPENMP
+✖ SSE
+✔ F16C
+✖ JEMALLOC
+✔ BLAS_OPEN
+✖ BLAS_ATLAS
+✖ BLAS_MKL
+✖ BLAS_APPLE
+✔ LAPACK
+✔ MKLDNN
+✔ OPENCV
+✖ CAFFE
+✖ PROFILER
+✔ DIST_KVSTORE
+✖ CXX14
+✖ INT64_TENSOR_SIZE
+✔ SIGNAL_HANDLER
+✖ DEBUG
+✖ TVM_OP
+----------System Info----------
+Platform     : Linux-4.15.0-129-generic-x86_64-with-Ubuntu-16.04-xenial
+system       : Linux
+node         : hai-211-lap.qb.hailotech
+release      : 4.15.0-129-generic
+version      : #132~16.04.1-Ubuntu SMP Wed Dec 16 06:46:04 UTC 2020
+----------Hardware Info----------
+machine      : x86_64
+processor    : x86_64
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                8
+On-line CPU(s) list:   0-7
+Thread(s) per core:    2
+Core(s) per socket:    4
+Socket(s):             1
+NUMA node(s):          1
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 142
+Model name:            Intel(R) Core(TM) i7-8665U CPU @ 1.90GHz
+Stepping:              12
+CPU MHz:               2794.722
+CPU max MHz:           4800.0000
+CPU min MHz:           400.0000
+BogoMIPS:              4199.88
+Virtualization:        VT-x
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              256K
+L3 cache:              8192K
+NUMA node0 CPU(s):     0-7
+Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d arch_capabilities
+----------Network Test----------
+Setting timeout: 10
+Timing for MXNet: https://github.com/apache/incubator-mxnet, DNS: 0.0932 sec, LOAD: 0.6922 sec.
+Timing for Gluon Tutorial(en): http://gluon.mxnet.io, DNS: 0.0122 sec, LOAD: 0.0945 sec.
+Error open Gluon Tutorial(cn): https://zh.gluon.ai, <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed (_ssl.c:852)>, DNS finished in 0.016017675399780273 sec.
+Timing for FashionMNIST: https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/gluon/dataset/fashion-mnist/train-labels-idx1-ubyte.gz, DNS: 0.0934 sec, LOAD: 0.8560 sec.
+Timing for PYPI: https://pypi.python.org/pypi/pip, DNS: 0.0251 sec, LOAD: 1.3593 sec.
+Error open Conda: https://repo.continuum.io/pkgs/free/, HTTP Error 403: Forbidden, DNS finished in 0.014355659484863281 sec.
+----------Environment----------
+KMP_DUPLICATE_LIB_OK="True"
+KMP_INIT_AT_FORK="FALSE"
+```
+
+</details>

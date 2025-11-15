@@ -1,0 +1,100 @@
+[Title] tf.signal.stft throws RuntimeException when pad_end=True
+
+**System information**
+- OS Platform and Distribution: Ubuntu 16.04
+- TensorFlow installed from: binary
+- TensorFlow version: v2.3.0-rc2-23-gb36436b087 2.3.0
+- Python version: 3.8 (Conda)
+
+**Describe the current behavior**
+
+`pad_end` of `tf.signal.stft` throws `RuntimeError` when set to `True`.
+
+**Describe the expected behavior**
+
+Should not throw a `RuntimeException` - just pad the end of the signal.
+
+**Standalone code to reproduce the issue**
+
+```python
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import numpy as np
+
+
+def main():
+    inputs = layers.Input(shape=(None,))
+    x = tf.signal.stft(inputs, 512, 20, pad_end=True)
+    model = keras.Model(inputs=inputs, outputs=x)
+    signals = tf.constant(np.random.rand(2, 511))
+    print(model(signals))
+    print('All done.')
+
+
+if __name__ == '__main__':
+    main()
+```
+
+**Other info / logs** 
+
+```none
+Traceback (most recent call last):
+  File "/home/sfalk/tmp/speech-v2/asr/bin/tmp.py", line 17, in <module>
+    main()
+  File "/home/sfalk/tmp/speech-v2/asr/bin/tmp.py", line 9, in main
+    x = tf.signal.stft(inputs, 512, 20, pad_end=True)
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/util/dispatch.py", line 201, in wrapper
+    return target(*args, **kwargs)
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/ops/signal/spectral_ops.py", line 86, in stft
+    framed_signals = shape_ops.frame(
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/util/dispatch.py", line 201, in wrapper
+    return target(*args, **kwargs)
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/ops/signal/shape_ops.py", line 162, in frame
+    paddings = array_ops.concat(
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/util/dispatch.py", line 201, in wrapper
+    return target(*args, **kwargs)
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/ops/array_ops.py", line 1654, in concat
+    return gen_array_ops.concat_v2(values=values, axis=axis, name=name)
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/ops/gen_array_ops.py", line 1221, in concat_v2
+    _, _, _op, _outputs = _op_def_library._apply_op_helper(
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/framework/op_def_library.py", line 409, in _apply_op_helper
+    values = ops.internal_convert_n_to_tensor(
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/framework/ops.py", line 1561, in internal_convert_n_to_tensor
+    convert_to_tensor(
+  File "/home/sfalk/miniconda3/envs/asr2/lib/python3.8/site-packages/tensorflow/python/framework/ops.py", line 1465, in convert_to_tensor
+    raise RuntimeError("Attempting to capture an EagerTensor without "
+RuntimeError: Attempting to capture an EagerTensor without building a function.
+
+Process finished with exit code 1
+```
+
+### Workaround
+
+Do the padding yourself:
+
+```python
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import numpy as np
+
+
+def main():
+    frame_length = 512
+    inputs = layers.Input(shape=(None,))
+    x = inputs
+
+    pad = frame_length - tf.math.mod(tf.shape(x)[1], frame_length)
+    x = tf.pad(x, [(0, 0), (0, pad)])
+    x = tf.signal.stft(x, 512, 20, pad_end=False)
+
+    model = keras.Model(inputs=inputs, outputs=x)
+    signals = tf.constant(np.random.rand(2, 511))
+    print(model(signals))
+    print('All done.')
+
+
+if __name__ == '__main__':
+    main()
+```

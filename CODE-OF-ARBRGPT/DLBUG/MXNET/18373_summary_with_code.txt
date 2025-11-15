@@ -1,0 +1,30 @@
+[Title] [Numpy] The symbolic export of BatchNorm is wrong
+
+```python
+import mxnet as mx
+import json
+import pprint
+mx.npx.set_np()
+net = mx.gluon.nn.BatchNorm(epsilon=2E-5, axis=2)
+net.hybridize()
+net.initialize()
+a = net(mx.np.ones((10, 3, 5, 5)))
+net.export('bnorm', 0)
+with open('bnorm-symbol.json') as f:
+   dat = json.load(f)
+   pprint.pprint(dat)
+```
+
+Output:
+```
+           {'attrs': {'__profiler_scope__': 'batchnorm0:',
+                      'axis': '1',
+                      'eps': '1e-05',
+                      'fix_gamma': 'False',
+                      'momentum': '0.9',
+                      'use_global_stats': 'False'},
+            'inputs': [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 1], [4, 0, 1]],
+            'name': 'batchnorm0_fwd',
+            'op': 'BatchNorm'}]}
+```
+We can find that `eps` and `axis` are not stored.

@@ -1,0 +1,75 @@
+[Title] [Bug] Weird bug when using ATen __rshift__() on cuda tensors
+
+## Issue description
+
+I've been writing C++/CUDA extensions (based on this tutorial https://github.com/pytorch/extension-cpp) and I encountered a weird bug.
+Using the function __rshift__() (declared in ATen/Functions.h) works on CPU tensors, but fails (returns the same result as __lshift__()) on CUDA tensors.
+
+## Code example
+Cpp file (shifts.cpp):
+```
+#include <torch/torch.h>
+#include <ATen/Functions.h>
+
+at::Tensor shift_left(at::Tensor x, int n)
+{
+	return x.__lshift__(n);
+}
+
+at::Tensor shift_right(at::Tensor x, int n)
+{
+	return x.__rshift__(n);
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+	m.def("lshift", &shift_left, "left shift");
+	m.def("rshift", &shift_right, "right shift");
+}
+```
+
+After exporting the functions to a module called cuda_if I ran this test:
+```
+import torch
+import cuda_if
+
+#CPU Tensor, works as expected
+a = torch.Tensor(1).fill_(4.0)
+print(cuda_if.lshift(a, 1)) #tensor([ 8.]) as expected
+print(cuda_if.rshift(a, 1)) #tensor([ 2.]) as expected
+
+#CUDA Tensor, **BUG in rshift(!!!)**
+a = torch.Tensor(1).fill_(4.0).cuda()
+print(cuda_if.lshift(a, 1)) #tensor([ 8.], device='cuda:0') as expected
+print(cuda_if.rshift(a, 1)) #tensor([ 8.], device='cuda:0') (**BUG!!!** expected 2)
+```
+
+
+In order to create the module I used this setup file (setup.py, run: python3 setup.py install):
+```
+from setuptools import setup
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+
+setup(
+    name='cuda_if',
+    ext_modules=[
+        CUDAExtension('cuda_if', [
+            'shifts.cpp',
+        ]),
+    ],
+    cmdclass={
+        'build_ext': BuildExtension
+    })
+```
+
+## System Info
+- PyTorch or Caffe2: PyTorch
+- How you installed PyTorch (conda, pip, source): pip
+- Build command you used (if compiling from source):
+- OS: Ubuntu 16.04
+- PyTorch version: 0.4.0
+- Python version: 3.5
+- CUDA/cuDNN version: 9
+- GPU models and configuration: GeForce GTX 1060
+- GCC version (if compiling from source):
+- CMake version:
+- Versions of any other relevant libraries:

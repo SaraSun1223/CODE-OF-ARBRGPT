@@ -1,0 +1,55 @@
+[Title] [Pytorch] DataLoader and python random module
+
+Even with seeding, the following script print different ouputs for `random.uniform` at the different runs. `random` module is even reseeded [here](https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py#L86).
+Outputs for `torch.rand` are the same though.
+```python
+import torch
+import random
+
+from torch.utils.data import Dataset, DataLoader
+
+class Data(Dataset):
+    def __len__(self):
+        return 10000
+    def __getitem__(self, index):
+        print(index, torch.rand(2, 2).sum().item(), random.uniform(0, 1))
+        return 1
+
+seed = 2018
+random.seed(seed)
+torch.manual_seed(seed)
+loader = DataLoader(Data(), num_workers=4, shuffle=True)
+
+for x in loader:
+    print('-'*10)
+    break
+```
+First run
+```
+4717 2.202341079711914 0.9952153654478976
+4607 2.3166141510009766 0.6813692345925851
+4194 1.9806793928146362 0.6281118075687344
+2595 2.95841383934021 0.8414756141240453
+4691 0.9809015393257141 0.7622458327788627
+9868 2.521920680999756 0.5253262288522356
+7367 2.333574056625366 0.35079311205192487
+9490 3.02830171585083 0.16235006783937567
+----------
+6759 3.1252167224884033 0.4424384676992986
+```
+Next run
+```
+4607 2.3166141510009766 0.15198273935290807
+4194 1.9806793928146362 0.36414129463658884
+4691 0.9809015393257141 0.027569260048619926
+4717 2.202341079711914 0.5512619092026773
+7367 2.333574056625366 0.7932627754589792
+9490 3.02830171585083 0.19395324967791994
+9868 2.521920680999756 0.5497794735158222
+2595 2.95841383934021 0.782779934368899
+----------
+6759 3.1252167224884033 0.7098308465010348
+```
+- Ubuntu 16.04
+- Python 3.6
+- PyTorch version: 0.4

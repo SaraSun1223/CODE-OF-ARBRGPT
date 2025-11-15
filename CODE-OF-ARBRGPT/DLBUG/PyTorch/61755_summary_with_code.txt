@@ -1,0 +1,40 @@
+[Title] HTTP Error 403 for torch.hub ResNet
+
+## 🐛 Bug
+
+`torch.hub` pretrained resnet doesn't work.
+
+## To Reproduce
+
+On colab:
+
+```py
+import torch
+
+model = torch.hub.load('pytorch/vision:v0.9.0', 'resnet18', pretrained=True)
+```
+
+Error:
+
+```py
+/usr/lib/python3.7/urllib/request.py in http_error_default(self, req, fp, code, msg, hdrs)
+    647 class HTTPDefaultErrorHandler(BaseHandler):
+    648     def http_error_default(self, req, fp, code, msg, hdrs):
+--> 649         raise HTTPError(req.full_url, code, msg, hdrs, fp)
+    650 
+    651 class HTTPRedirectHandler(BaseHandler):
+
+HTTPError: HTTP Error 403: rate limit exceeded
+```
+
+This is identical to the code snippet on the [website](https://pytorch.org/hub/pytorch_vision_resnet/)
+
+## Expected behavior
+
+The code should run.
+
+## Environment
+
+Google colab.
+
+cc @nairbv

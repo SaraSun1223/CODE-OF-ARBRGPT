@@ -1,0 +1,45 @@
+[Title] MKLDNN numpy rnn core dump
+
+With the following script mxnet will core dump on y.backward(). My build is master with cuda off mkldnn on. I tried to build mkldnn off and the script wouldn't core dump then.
+
+```python
+def test_rnn():
+    INT_OVERFLOW = 2**10
+    def batch_check(x, modes, params):
+        for m, p in zip(modes, params):
+            state = np.random.normal(0, 1, (1, 4, 1))
+            x.attach_grad()
+            state.attach_grad()
+            x.attach_grad()
+            p.attach_grad()
+
+            with mx.autograd.record():
+                y = npx.rnn(data=x, parameters=p, mode=m, \
+                    state=state, state_size=1, num_layers=1)
+            assert y.shape == (INT_OVERFLOW, 4, 1)
+            assert type(y[0]).__name__ == 'ndarray'
+            y.backward()
+            print(state.grad)
+    data = np.random.normal(0, 1, (INT_OVERFLOW, 4, 4))
+    modes = ['rnn_relu', 'rnn_tanh', 'gru']
+    params = [np.random.normal(0, 1, (7,)), \
+        np.random.normal(0, 1, (7,)), \
+        np.random.normal(0, 1, (21,))]
+    batch_check(data, modes, params)               
+```
+
+This will trigger two possible error messages:
+Sometimes it's:
+```
+ubuntu@ip-172-31-38-169:~/incubator-mxnet$ python rnn.py 
+[22:40:24] ../src/storage/storage.cc:198: Using Pooled (Naive) StorageManager for CPU
+corrupted size vs. prev_size
+Aborted (core dumped)
+```
+Other times:
+```
+ubuntu@ip-172-31-38-169:~/incubator-mxnet$ python rnn.py 
+[21:57:52] ../src/storage/storage.cc:198: Using Pooled (Naive) StorageManager for CPU
+malloc_consolidate(): invalid chunk size
+Aborted (core dumped)
+```

@@ -1,0 +1,80 @@
+[Title] [Numpy] unknown type_flag=7
+
+## Description
+A series of issues related to `kBool` occured afther the pull #17438 and [#4571](https://github.com/apache/incubator-tvm/pull/4571/) in tvm. This is, after all, a serious problem that makes many of deep numpy's features unusable.
+
+Here is a simple error case.
+
+### Error Message
+```
+---------------------------------------------------------------------------
+MXNetError                                Traceback (most recent call last)
+<ipython-input-2-48e3c90810f4> in <module>
+     17 foo = Foo()
+     18 foo.hybridize()
+---> 19 out = foo(mx.np.ones((10,), ctx=mx.gpu()))
+
+~/incubator-mxnet/python/mxnet/gluon/block.py in __call__(self, *args)
+    680             hook(self, args)
+    681 
+--> 682         out = self.forward(*args)
+    683 
+    684         for hook in self._forward_hooks.values():
+
+~/incubator-mxnet/python/mxnet/gluon/block.py in forward(self, x, *args)
+   1175                                      'Find all contexts = {}'.format(ctx_set))
+   1176                 with ctx:
+-> 1177                     return self._call_cached_op(x, *args)
+   1178             with ctx:
+   1179                 try:
+
+~/incubator-mxnet/python/mxnet/gluon/block.py in _call_cached_op(self, *args)
+   1022         cargs = [args_without_none[i] if is_arg else i.data()
+   1023                  for is_arg, i in self._cached_op_args]
+-> 1024         out = self._cached_op(*cargs)
+   1025         if isinstance(out, NDArray):
+   1026             out = [out]
+
+~/incubator-mxnet/python/mxnet/_ctypes/ndarray.py in __call__(self, *args, **kwargs)
+    167             ctypes.byref(num_output),
+    168             ctypes.byref(output_vars),
+--> 169             ctypes.byref(out_stypes)))
+    170 
+    171         if original_output is not None:
+
+~/incubator-mxnet/python/mxnet/base.py in check_call(ret)
+    244     """
+    245     if ret != 0:
+--> 246         raise get_last_ffi_error()
+    247 
+    248 
+
+MXNetError: Traceback (most recent call last):
+  File "../src/nnvm/plan_memory.cc", line 58
+MXNetError: unknown type_flag=7
+```
+
+## To Reproduce
+```
+import mxnet as mx
+import numpy as np
+from numpy.testing import assert_allclose
+from mxnet.gluon import HybridBlock
+mx.npx.set_np()
+
+class Foo(HybridBlock):
+    def __init__(self, prefix=None, params=None):
+        super(Foo, self).__init__(prefix=prefix, params=params)
+
+    def hybrid_forward(self, F, valid_length):
+        mask = (F.np.ones((10,)) < valid_length).astype(np.float32)
+        mask2 = (F.np.ones((10,)) < valid_length).astype(np.float32)
+        mask = mask * F.np.expand_dims(mask2, axis=-1)
+        return mask
+
+foo = Foo()
+foo.hybridize()
+out = foo(mx.np.ones((10,), ctx=mx.gpu()))
+```
+## Comments
+@sxjscience  @yzhliu

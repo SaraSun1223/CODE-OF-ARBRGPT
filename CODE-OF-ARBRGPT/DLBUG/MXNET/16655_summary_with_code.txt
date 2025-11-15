@@ -1,0 +1,18 @@
+[Title] [Numpy] Clear error message
+
+```python
+import mxnet as mx
+mx.npx.set_np()
+a = mx.np.ones((10,10))
+a.reshape(shape=(-1,))
+```
+Error message:
+```
+~/mxnet/python/mxnet/numpy/multiarray.py in reshape(self, *args, **kwargs)
+   1141             if 'order' not in kwargs:
+   1142                 raise TypeError('{} is an invalid keyword argument for this function'
+-> 1143                                 .format(kwargs.keys()[0]))
+   1144             order = kwargs.pop('order', 'C')
+   1145             if order != 'C':
+```
+The cause is because the kwargs is not supported. However, the error message is not user-friendly

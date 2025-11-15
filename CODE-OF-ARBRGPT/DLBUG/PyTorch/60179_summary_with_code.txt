@@ -1,0 +1,170 @@
+[Title] torch.onnx.export deals incorrectly with padding dimensions for F.pad
+
+## 🐛 Bug
+
+When one exports a simple `nn.Module` containing `F.pad` to ONNX, and then runs that ONNX model via onnxruntime, one gets different results. The issue is that the produced .onnx file has the padding dimensions in the wrong order. 
+
+I have verified that the bug is in `torch.onnx.export` not in onnxruntime. Firstly, I've looked at the .onnx file. Second, I've compared the outputs produced by onnxruntime and [onnx2pytorch](https://github.com/ToriML/onnx2pytorch) -- which both agree with each other, yet are different from the original PyTorch outputs.
+
+## To Reproduce
+
+Run the following snippet:
+
+```import io
+import numpy as np
+import onnx
+import onnxruntime as ort
+import torch
+import torch.nn.functional as F
+
+from torch import nn
+
+
+class StackTime(nn.Module):
+    __constants__ = ["factor"]
+    def __init__(self, factor):
+        super().__init__()
+        self.factor = int(factor)
+    def forward(self, x, x_lens):
+        r = torch.transpose(x, 0, 1)
+        s = r.shape
+        r = F.pad(r, [0, 0, 0, (-s[1]) % self.factor, 0, 0])
+        s = r.shape
+        rs = [s[0], s[1]//self.factor, s[2]*self.factor]
+        r = torch.reshape(r, rs)
+        x_lens = torch.ceil(x_lens.float() / self.factor).int()
+        return torch.transpose(r, 0, 1), x_lens
+
+stm = StackTime(factor=2)
+
+max_seq_len = 7
+batch = 8
+hidden = 3
+
+torch.manual_seed(42)
+x = torch.rand(max_seq_len, batch, hidden)
+x_lens = torch.tensor([1, 2, 3, 4, 5, 6, 7, 7])
+sx, sx_lens = stm(x, x_lens)
+
+bitstream = io.BytesIO()
+torch.onnx.export(
+    model=stm,
+    args=(x, x_lens),
+    f=bitstream,
+    input_names=["x", "x_lens"],
+    opset_version=11,
+    dynamic_axes={"x": {0: "seq_len", 1: "batch"}, "x_lens": {0: "batch"}})
+bitstream_data = bitstream.getvalue()
+ort_session = ort.InferenceSession(bitstream_data)
+ort_inputs = {"x": x.numpy(), "x_lens": x_lens.numpy()}
+ort_outputs = ort_session.run(None, ort_inputs)
+ort_sx, ort_sx_lens = ort_outputs
+
+print(x.detach().numpy().shape)  # (7, 8, 3)
+print(x_lens.detach().numpy().shape)  # (8,)
+print(sx.detach().numpy().shape)  # (4, 8, 6)
+print(sx_lens.detach().numpy().shape)  # (8,)
+print(ort_sx.shape)  # (3, 8, 6) -- this is different
+print(ort_sx_lens.shape)  # (8,)
+
+np.testing.assert_allclose(ort_sx, sx.detach().numpy(), rtol=1e-5, atol=1e-5)
+np.testing.assert_allclose(ort_sx_lens, sx_lens.detach().numpy(), rtol=1e-5, atol=1e-5)
+```
+
+## Expected behavior
+
+The resulting output is:
+```(7, 8, 3)
+(8,)
+(4, 8, 6)
+(8,)
+(3, 8, 6)
+(8,)
+Traceback (most recent call last):
+  File "stacktimev2.py", line 59, in <module>
+    np.testing.assert_allclose(ort_sx, sx.detach().numpy(), rtol=1e-5, atol=1e-5)
+  File "/home/calvin/miniconda3/envs/nonideal-quant-2/lib/python3.7/site-packages/numpy/testing/_private/utils.py", line 1528, in assert_allclose
+    verbose=verbose, header=header, equal_nan=equal_nan)
+  File "/home/calvin/miniconda3/envs/nonideal-quant-2/lib/python3.7/site-packages/numpy/testing/_private/utils.py", line 759, in assert_array_compare
+    raise AssertionError(msg)
+AssertionError: 
+Not equal to tolerance rtol=1e-05, atol=1e-05
+
+(shapes (3, 8, 6), (4, 8, 6) mismatch)
+ x: array([[[0.882269, 0.915004, 0.382864, 0.105315, 0.269495, 0.358813],
+        [0.959306, 0.390448, 0.600895, 0.199364, 0.547192, 0.00616 ],
+        [0.256572, 0.793641, 0.940771, 0.951555, 0.075266, 0.886014],...
+ y: array([[[0.882269, 0.915004, 0.382864, 0.105315, 0.269495, 0.358813],
+        [0.959306, 0.390448, 0.600895, 0.199364, 0.547192, 0.00616 ],
+        [0.256572, 0.793641, 0.940771, 0.951555, 0.075266, 0.886014],...
+```
+
+But we expected to not get this AssertionError, because the ONNX should produce output of shape (4, 8, 6) not (3, 8, 6).
+
+## Environment
+
+Collecting environment information...
+PyTorch version: 1.7.1+cu110
+Is debug build: False
+CUDA used to build PyTorch: 11.0
+ROCM used to build PyTorch: N/A
+
+OS: Ubuntu 18.04.5 LTS (x86_64)
+GCC version: (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+Clang version: Could not collect
+CMake version: version 3.10.2
+Libc version: glibc-2.10
+
+Python version: 3.7 (64-bit runtime)
+Python platform: Linux-4.15.0-128-generic-x86_64-with-debian-buster-sid
+Is CUDA available: True
+CUDA runtime version: 11.1.105
+GPU models and configuration: 
+GPU 0: A100-PCIE-40GB
+GPU 1: A100-PCIE-40GB
+GPU 2: A100-PCIE-40GB
+GPU 3: A100-PCIE-40GB
+GPU 4: A100-PCIE-40GB
+GPU 5: A100-PCIE-40GB
+GPU 6: A100-PCIE-40GB
+GPU 7: A100-PCIE-40GB
+
+Nvidia driver version: 450.80.02
+cuDNN version: Probably one of the following:
+/usr/lib/x86_64-linux-gnu/libcudnn.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_train.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_ops_infer.so.8.0.5
+/usr/lib/x86_64-linux-gnu/libcudnn_ops_train.so.8.0.5
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] numpy==1.19.5
+[pip3] onnx2pytorch==0.3.0
+[pip3] pytorch-ignite==0.4.4
+[pip3] qtorch==0.2.0
+[pip3] tf2pytorch==0.1337
+[pip3] torch==1.7.1+cu110
+[pip3] torchaudio==0.7.2
+[pip3] torchfile==0.1.0
+[pip3] torchvision==0.8.2+cu110
+[conda] numpy                     1.19.5                   pypi_0    pypi
+[conda] onnx2pytorch              0.3.0                     dev_0    <develop>
+[conda] pytorch-ignite            0.4.4                    pypi_0    pypi
+[conda] qtorch                    0.2.0                    pypi_0    pypi
+[conda] tf2pytorch                0.1337                    dev_0    <develop>
+[conda] torch                     1.7.1+cu110              pypi_0    pypi
+[conda] torchaudio                0.7.2                    pypi_0    pypi
+[conda] torchfile                 0.1.0                    pypi_0    pypi
+[conda] torchvision               0.8.2+cu110              pypi_0    pypi
+
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+
+
+cc @garymm @BowenBao @neginraoof

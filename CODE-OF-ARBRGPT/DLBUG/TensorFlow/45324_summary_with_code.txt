@@ -1,0 +1,26 @@
+[Title] When tf.image.central_crop taking a tensor as `central_fraction` argument, it raises OperatorNotAllowedInGraphError.
+
+<em>Please make sure that this is a bug. As per our
+[GitHub Policy](https://github.com/tensorflow/tensorflow/blob/master/ISSUES.md),
+we only address code/doc bugs, performance issues, feature requests and
+build/installation issues on GitHub. tag:bug_template</em>
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow):
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): win10
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device:
+- TensorFlow installed from (source or binary): source
+- TensorFlow version (use command below): 2.4.0-rc3
+- Python version: 3.8.5
+- Bazel version (if compiling from source): 3.1
+- GCC/Compiler version (if compiling from source):
+- CUDA/cuDNN version: 11.1 / 8
+- GPU model and memory: rtx 3080 10GB
+
+
+Colab notebook : https://colab.research.google.com/drive/1owELtE9_mTh1HCx20Yt3fJ3ynXLvds_x#scrollTo=rrehHBjoLUpT
+
+**Is it prohibited to pass a tensor to `central_fraction` argument of tf.image.central_crop function?**
+It raises OperatorNotAllowedInGraphError.
+
+When used with map of tfdataset, the function raises the error. But using it with a eager tensor doesn't.

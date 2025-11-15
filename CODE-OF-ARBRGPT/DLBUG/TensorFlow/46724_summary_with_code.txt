@@ -1,0 +1,22 @@
+[Title] `tf.matmul` and `tf.tensordot` behave different in converted concrete function in TensorFlowLite 
+
+### 1. System information
+
+- OS Platform and Distribution: MacOS 10.15 and Ubuntu 18.04 LTS on Colab machine
+- TensorFlow installation (pip package or built from source): pip
+- TensorFlow library (version, if pip package or github SHA, if built from source): `tensorflow                    2.4.0`
+
+### 2. Code
+
+This notebook demonstrates the bug with the simplest example I came up with.
+
+https://colab.research.google.com/gist/ebraraktas/ab87170deb38eae979b37795015e44bc
+
+### 3. Failure after conversion
+
+I implemented RFFT for TFLite using `tf.matmul` and saved the module concrete function. But invoking saved tflite model repeatedly returns different results. However, replacing `tf.matmul` with `tf.tensordot` fixes the strange behavior. Therefore, I have prepared the notebook above to demonstrate the bug. I have realized interesting cases which change the behavior:
+
+- If negative sign is removed from output returned from `DummyMatmul` or `DummyTensordot` (`result` variable), outputs are same
+- If we use `tf.Module` directly, outputs are same (colab demo shows it)
+- Somehow, size of the right hand side matrix matters (colab demo shows it)
+- Difference occurs after first iteration (colab demo shows it), and for some inputs it gets larger with every iteration

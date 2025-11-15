@@ -1,0 +1,38 @@
+[Title] weighted_moments produces NaNs when weights are all zeros
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): no
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Debian 
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device: N/A
+- TensorFlow installed from (source or binary): source
+- TensorFlow version (use command below): git
+- Python version: 3.9
+- Bazel version (if compiling from source): 4.2
+- GCC/Compiler version (if compiling from source): gcc-10
+- CUDA/cuDNN version: N/A
+- GPU model and memory: N/A
+
+
+**Describe the current behavior**
+`tf.nn.weighted_moments` produces NaNs when all weights are zeros.
+**Describe the expected behavior**
+Correct result in this case should be zeros.
+
+**[Contributing](https://www.tensorflow.org/community/contribute)**
+
+- Do you want to contribute a PR? (yes/no): yes
+- Briefly describe your candidate solution(if contributing):
+Do not divide by 0 unless you are Chuck Norris.
+
+**Standalone code to reproduce the issue**
+```python
+x = tf.random.uniform((5, 3))
+w = tf.zeros((5, 1))
+
+tf.nn.weighted_moments(x, axes=0, frequency_weights=w)
+
+(<tf.Tensor: shape=(3,), dtype=float32, numpy=array([nan, nan, nan], dtype=float32)>,
+ <tf.Tensor: shape=(3,), dtype=float32, numpy=array([nan, nan, nan], dtype=float32)>)
+
+
+```

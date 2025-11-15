@@ -1,0 +1,89 @@
+[Title] Flaky test_np_mixed_precision_binary_funcs
+
+Flaky test on Unix and Windows in 1.6.0 branch.
+
+```
+
+FAIL: test_operator_gpu.test_np_mixed_precision_binary_funcs
+
+----------------------------------------------------------------------
+
+Traceback (most recent call last):
+
+  File "C:\Python27\lib\site-packages\nose\case.py", line 197, in runTest
+
+    self.test(*self.arg)
+
+  File "C:\Python27\lib\site-packages\nose\util.py", line 620, in newfunc
+
+    return func(*arg, **kw)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\tests\python\gpu\../unittest\common.py", line 177, in test_new
+
+    orig_test(*args, **kwargs)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\windows_package\python\mxnet\util.py", line 315, in _with_np_shape
+
+    return func(*args, **kwargs)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\windows_package\python\mxnet\util.py", line 499, in _with_np_array
+
+    return func(*args, **kwargs)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\tests\python\gpu\../unittest\test_numpy_op.py", line 1745, in test_np_mixed_precision_binary_funcs
+
+    check_mixed_precision_binary_func(func, low, high, lshape, rshape, type1, type2)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\tests\python\gpu\../unittest\test_numpy_op.py", line 1711, in check_mixed_precision_binary_func
+
+    use_broadcast=False, equal_nan=True)
+
+  File "C:\jenkins_slave\workspace\ut-python-gpu\windows_package\python\mxnet\test_utils.py", line 627, in assert_almost_equal
+
+    raise AssertionError(msg)
+
+AssertionError: 
+
+Items are not equal:
+
+Error 1.699567 exceeds tolerance rtol=1.000000e-02, atol=1.000000e-04 (mismatch 16.666667%).
+
+Location of maximum error: (1, 2), a=0.00364602, b=0.00341797
+
+ ACTUAL: array([[ 1.2228843 ,  0.656417  , -0.09840477],
+
+       [ 1.2477866 , -0.0324868 ,  0.00364602]], dtype=float32)
+
+ DESIRED: array([[ 1.2226562 ,  0.65625   , -0.09863281],
+
+       [ 1.2480469 , -0.03271484,  0.00341797]], dtype=float32)
+
+-------------------- >> begin captured stdout << ---------------------
+
+
+
+*** Maximum errors for vector of size 6:  rtol=0.01, atol=0.0001
+
+
+
+  1: Error 1.699567  Location of error: (1, 2), a=0.00364602, b=0.00341797
+
+
+
+--------------------- >> end captured stdout << ----------------------
+
+-------------------- >> begin captured logging << --------------------
+
+root: INFO: NumPy-shape semantics has been activated in your code. This is required for creating and manipulating scalar and zero-size tensors, which were not supported in MXNet before, as in 
+
+the official NumPy library. Please DO NOT manually deactivate this semantics while using `mxnet.numpy` and `mxnet.numpy_extension` modules.
+
+common: INFO: Setting test np/mx/python random seeds, use MXNET_TEST_SEED=1803980412 to reproduce.
+
+--------------------- >> end captured logging << ---------------------
+
+```
+
+http://jenkins.mxnet-ci.amazon-ml.com/blue/organizations/jenkins/mxnet-validation%2Fwindows-gpu/detail/PR-16846/2/pipeline/
+
+http://jenkins.mxnet-ci.amazon-ml.com/blue/organizations/jenkins/mxnet-validation%2Funix-gpu/detail/PR-16846/2/pipeline

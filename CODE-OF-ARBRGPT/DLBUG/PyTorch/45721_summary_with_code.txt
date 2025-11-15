@@ -1,0 +1,70 @@
+[Title] kthvalue incorrect with strided GPU tensor
+
+## 🐛 Bug
+
+When input tensor is on GPU and is strided, `kthvalue` will give wrong values and indices.
+
+## To Reproduce
+
+```
+>>> import torch
+>>> a = torch.tensor([0, -1, 1, -2, 2]).cuda()[::2]
+>>> a
+tensor([0, 1, 2], device='cuda:0')
+>>> a.kthvalue(2)
+torch.return_types.kthvalue(
+values=tensor(0, device='cuda:0'),
+indices=tensor(0, device='cuda:0'))
+```
+
+## Expected behavior
+
+The behavior on CPU as below is expected:
+```
+>>> import torch
+>>> a = torch.tensor([0, -1, 1, -2, 2])[::2]
+>>> a
+tensor([0, 1, 2])
+>>> a.kthvalue(2)
+torch.return_types.kthvalue(
+values=tensor(1),
+indices=tensor(1))
+```
+It seems that `kthvalue` is performed on `[0, -1, 1]`, the tensor with the same start address and size as `a` but stride 1.
+A workaround is to use `a.contiguous().kthvalue(2)`, but this is not the expected way to use `kthvalue`.
+
+## Environment
+
+```
+Collecting environment information...
+PyTorch version: 1.7.0.dev20201001
+Is debug build: True
+CUDA used to build PyTorch: 10.2
+ROCM used to build PyTorch: N/A
+
+OS: Ubuntu 18.04.5 LTS (x86_64)
+GCC version: (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0
+Clang version: Could not collect
+CMake version: version 3.10.2
+
+Python version: 3.6 (64-bit runtime)
+Is CUDA available: True
+CUDA runtime version: 10.2.89
+GPU models and configuration: 
+GPU 0: GeForce GTX 1080 Ti
+GPU 1: GeForce GTX 1080 Ti
+
+Nvidia driver version: 440.64
+cuDNN version: /usr/lib/x86_64-linux-gnu/libcudnn.so.7.6.5
+HIP runtime version: N/A
+MIOpen runtime version: N/A
+
+Versions of relevant libraries:
+[pip3] numpy==1.19.2
+[pip3] torch==1.7.0.dev20201001
+[pip3] torchvision==0.8.0.dev20201001
+[conda] Could not collect
+```
+
+
+cc @ezyang @gchanan @zou3519 @ngimel @heitorschueroff

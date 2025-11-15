@@ -1,0 +1,37 @@
+## Description
+I noticed a serialization bug when rerunning the machine translation example in GluonNLP. This might be due to the recently upgraded serialization format.
+
+Here's the reproducible example:
+```python
+import mxnet as mx
+import numpy as np
+mx.npx.set_np()
+
+net = mx.gluon.nn.Embedding(input_dim=32768, output_dim=512)
+net.initialize()
+net.save_parameters('temp.params')
+original_weight = net.collect_params()['weight'].data().asnumpy()
+loaded_params = mx.npx.load('temp.params')
+loaded_weight = loaded_params['weight'].asnumpy()
+np.testing.assert_allclose(original_weight, loaded_weight, 1E-4, 1E-4)
+```
+Output:
+
+```
+---> 11 np.testing.assert_allclose(original_weight, loaded_weight, 1E-4, 1E-4)
+
+    [... skipping hidden 2 frame]
+
+AssertionError: 
+Not equal to tolerance rtol=0.0001, atol=0.0001
+
+Mismatched elements: 16735981 / 16777216 (99.8%)
+Max absolute difference: 0.13994947
+Max relative difference: 4780370.5
+ x: array([[-0.019636,  0.020329, -0.045591, ..., -0.036925, -0.007389,
+         0.043669],
+       [-0.01338 ,  0.055998,  0.046903, ..., -0.006462,  0.001994,...
+ y: array([[-0.019636,  0.020329, -0.045591, ..., -0.036925, -0.007389,
+         0.043669],
+       [-0.01338 ,  0.055998,  0.046903, ..., -0.006462,  0.001994,...
+```

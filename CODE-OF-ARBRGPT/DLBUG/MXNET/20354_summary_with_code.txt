@@ -1,0 +1,151 @@
+## Description
+Two tests will break after switching to use Gluon2.0 in #20262 . 
+
+- tests/python/mkl/subgraphs/test_conv_subgraph.py::test_pos_concat_scale_align
+  - Reason: Scale doesn't align in numpy for numpy operators
+
+### Error Message
+```python
+    def check_qsym_scale_align(qsym):
+      assert ''.join(qsym.attr_dict().keys()).find('quantized_sg_mkldnn_conv') != -1
+      init = False
+      for k, v in qsym.attr_dict().items():
+        if k.find('quantized_sg_mkldnn_conv') != -1:
+          assert 'min_calib_range' in v
+          assert 'max_calib_range' in v
+          if not init:
+            min_calib_range = v['min_calib_range']
+            max_calib_range = v['max_calib_range']
+            init = True
+          else:
+>           assert min_calib_range == v['min_calib_range']
+E           AssertionError
+```
+
+## To Reproduce
+```python
+import mxnet as mx
+from mxnet.gluon import nn
+from mxnet.contrib import quantization
+mx.npx.set_np()
+
+class ConcatScaleAlign(nn.HybridBlock):
+    def __init__(self, **kwargs):
+        super(ConcatScaleAlign, self).__init__(**kwargs)
+        self.shared_weight = mx.gluon.Parameter('shared_weight', shape=(64, 4, 3, 3),
+                                                init=mx.init.Xavier(magnitude=2.24),
+                                                dtype='float32', allow_deferred_init=True)
+
+    def forward(self, x):
+        conv1 = mx.npx.convolution(x, kernel=(3,3), num_filter=64,
+                                   weight=self.shared_weight.data(x.ctx), no_bias=True)
+        conv2 = mx.npx.convolution(x, kernel=(3,3), num_filter=64,
+                                   weight=self.shared_weight.data(x.ctx)*2, no_bias=True)
+        return mx.np.concatenate([conv1, conv2], axis=1)
+
+concat = ConcatScaleAlign()
+concat.initialize(init=mx.init.Normal(0.5), force_reinit=True)
+data = mx.np.random.uniform(-1, 1.0, size=(64, 4, 10, 10), dtype='float32', ctx=mx.current_context())
+
+outputs = concat(data)
+
+calib_data = mx.gluon.data.DataLoader(data, batch_size=1)
+qnet = quantization.quantize_net(concat,
+                                ctx=mx.current_context(),
+                                exclude_layers=None,
+                                exclude_operators=None,
+                                quantized_dtype='int8',
+                                calib_mode='naive',
+                                calib_data=calib_data,
+                                num_calib_batches=1,
+                                quantize_mode='full',
+                                quantize_granularity='tensor-wise')
+qsym, _ = qnet.export(None)
+init = False
+for k, v in qsym.attr_dict().items():
+    if k.find('quantized_sg_mkldnn_conv') != -1:
+        assert 'min_calib_range' in v
+        assert 'max_calib_range' in v
+        if not init:
+            min_calib_range = v['min_calib_range']
+            max_calib_range = v['max_calib_range']
+            init = True
+        else:
+            assert min_calib_range == v['min_calib_range']
+            assert max_calib_range == v['max_calib_range']
+```
+
+- tests/python/mkl/subgraphs/test_fc_subgraph.py::test_fc_eltwise
+  - Reason: Operator square, square_root, abs, exp cannot be found in numpy mode
+ ### Error Message
+```python
+    def check_fusion(net_original, data_shape, attrs_dict, check_fp32_fusion=True, check_quantization=True,
+                     out_types=['uint8', 'int8', 'auto'], dedup_subgraph=True):
+      net_original.initialize()
+      net_original.hybridize(static_alloc=False, static_shape=False)
+      data = mx.np.random.uniform(size=data_shape, dtype='float32', ctx=mx.current_context())
+      net_original(data)
+      net_fusion = copy.copy(net_original)
+      sym, params = net_original.export(None)
+    
+      if check_fp32_fusion:
+        data_min = -1.0
+        data_max = 1.0
+        if ''.join(sym.get_internals().list_outputs()).find('sqrt') != -1:
+          check_quantization = False
+          data_min = 0
+    
+        sym_sg = sym.optimize_for(SG_PASS_NAME, dedup_subgraph=dedup_subgraph, skip_infer=True)
+        for name, attrs in attrs_dict.items():
+          if name in config:
+            op_name = config[name][OP_NAME]
+          else:
+            op_name = name
+          assert ''.join(sym_sg.get_internals().list_outputs()).find(op_name) != -1
+          if len(attrs):
+              found = False
+              for k, v in sym_sg.attr_dict().items():
+                if k.find(op_name) != -1:
+                  found = True
+                  for attr_name, attr_value in attrs.items():
+                    assert v[attr_name].lower() == attr_value.lower()
+>             assert found
+E             AssertionError
+```
+## To Reproduce
+```python
+import mxnet as mx
+from mxnet.gluon import nn
+mx.npx.set_np()
+
+class FCEltwise(nn.HybridBlock):
+    def __init__(self, use_bias, flatten, **kwargs):
+        super(FCEltwise, self).__init__(**kwargs)
+        self.fc = nn.Dense(units=64, use_bias=use_bias, flatten=flatten,
+                         weight_initializer=None)
+
+    def forward(self, x):
+        fc_out = self.fc(x)
+        out = mx.np.square(fc_out)
+        return out
+
+attrs = {'fc': {'with_eltwise': 'true'}}
+net = FCEltwise(True, True)
+
+net.initialize()
+net.hybridize(static_alloc=False, static_shape=False)
+data = mx.np.random.uniform(size=(64, 4, 10, 10), dtype='float32', ctx=mx.current_context())
+net(data)
+sym, params = net.export(None)
+
+sym_sg = sym.optimize_for('MKLDNN', dedup_subgraph=True, skip_infer=True)
+for name, attrs in attrs.items():
+    if len(attrs):
+        found = False
+        for k, v in sym_sg.attr_dict().items():
+            if k.find('sg_mkldnn_fully_connected') != -1:
+                found = True
+                for attr_name, attr_value in attrs.items():
+                    assert v[attr_name].lower() == attr_value.lower()
+        assert found
+```

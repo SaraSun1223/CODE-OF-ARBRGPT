@@ -1,0 +1,20 @@
+[Title] `torch.max` does not create a named tuple if applied to a subclass
+
+## 🐛 Bug
+
+In PyTorch 1.7 on Ubuntu 20.04, `torch.max` does not create a named tuple if applied to a subclass, although the docs say it should be.
+
+```
+import torch
+class _T(torch.Tensor): ...
+x = torch.tensor([1,2]).as_subclass(_T)
+torch.max(x, dim=0)
+```
+
+That returns
+
+    (tensor(2), tensor(1))
+
+It should return a named tuple.
+
+cc @hameerabbasi @rgommers @mruberry

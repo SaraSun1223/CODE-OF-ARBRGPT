@@ -1,0 +1,20 @@
+[Title] Error msg with conv2D in pytorch 0.4
+
+## Issue description:
+got the following err msg with conv2D and ver 0.4: RuntimeError: expected stride to be a single integer value or a list of 1 values to match the convolution dimensions, but got stride=[1, 1]. 
+I was not able to see the problem so I uninstalled 0.4 and installed 0.3.1
+Still got an err but this time it said that the expected input should be a 4d tensor and it got a 3D tensor. 
+This helped understand the issue and I fixed it (just add a dimension). reinstalled 0.4 and its working (no surprise...). I think 0.4 should have the same err feedback otherwise its really hard to undrstand the problem
+
+
+
+- How you installed PyTorch (conda, pip, source): conda
+- Build command you used (if compiling from source):
+- OS: macos
+- PyTorch version: 0.4
+- Python version: 3.5
+- CUDA/cuDNN version: no
+- GPU models and configuration:
+- GCC version (if compiling from source):
+- CMake version:
+- Versions of any other relevant libraries:

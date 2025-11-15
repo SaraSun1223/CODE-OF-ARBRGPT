@@ -1,0 +1,19 @@
+[Title] All cpu allocations after calling _make_per_tensor_quantized_tensor on a cuda tensor are in pinned memory
+
+## 🐛 Bug
+
+After some quantization operations are called on cuda tensors (in particular, _make_per_tensor_quantized_tensor, maybe some others) all subsequent cpu allocations are using pinned memory
+## To Reproduce
+```
+import torch
+x = torch.randn(3)
+print(x.is_pinned()) # False, as expected
+q_int = torch.randint(0, 100, [1, 2, 3], device="cuda", dtype=torch.int)
+q = torch._make_per_tensor_quantized_tensor(q_int, scale=0., zero_point=0)
+x = torch.randn(3)
+print(x.is_pinned()) #True, all host allocations after this point are in pinned memory
+```
+Quantization operations should not affect subsequent cpu allocations
+This is important because with pinned allocations all the cpu operations will be slowed down significantly. E.g. `test_histogram_observer` runs for 40s in isolation, but for 400s if there were previous cuda quantization operations, and all the allocations as a result are forced to be pinned allocations. 
+
+cc @ezyang @gchanan @zou3519 @jerryzh168 @jianyuh @dzhulgakov @raghuramank100 @jamesr66a

@@ -1,0 +1,28 @@
+[Title] Indexing ndarray should give empty array output
+
+## Description
+When indexing an ndarray with an index greater than the dim size, it should produce an empty ndarray as in NumPy, instead of throwing an error.
+
+```python
+>>> import mxnet as mx
+>>> mx.npx.set_np()
+>>> a = mx.np.arange(1)
+>>> a
+array([0.])
+>>> a[1:]  # index exceeds dim size, should result in an empty array instead of throwing an error
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/ubuntu/unison/mxnet4/cpu/python/mxnet/numpy/multiarray.py", line 663, in __getitem__
+    return self._slice(key.start, key.stop)
+  File "/home/ubuntu/unison/mxnet4/cpu/python/mxnet/ndarray/ndarray.py", line 1343, in _slice
+    start, stop, _ = _get_index_range(start, stop, self.shape[0])
+  File "/home/ubuntu/unison/mxnet4/cpu/python/mxnet/ndarray/ndarray.py", line 3100, in _get_index_range
+    raise IndexError('Slicing start %d exceeds limit of %d' % (start, length))
+IndexError: Slicing start 1 exceeds limit of 1
+>>> a.asnumpy()[1:]  # Okay in NumPy
+array([], dtype=float32)
+>>> a
+array([0.])
+>>> 
+```
+@Alicia1529

@@ -1,0 +1,28 @@
+[Title] Wrong path separator in error message when saved model does not exist (in keras.models.load_model)
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): Yes
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Windows 10 Home Single Language (build 19042.610)
+- TensorFlow installed from (source or binary): binary
+- TensorFlow version (use command below): v2.3.0-54-gfcc4b966f1 2.3.1
+- Python version: 3.8.6
+- CUDA/cuDNN version: 10.1
+- GPU model and memory: GeForce RTX 2070 SUPER 8 GB
+
+**Current behavior**
+When I use function `keras.models.load_model` with incorrect path, I catch IOError:
+`OSError: SavedModel file does not exist at: C:\IncorrectPathToSavedModel/{saved_model.pbtxt|saved_model.pb}`
+Because I use Windows, path separator "/" is incorrect,  and when I view code of `parse_saved_model` in "\tensorflow\python\saved_model\loader_impl.py" I see hardcoded symbol in error text definition.
+
+**Expected behavior**
+Path separator should be recived from `os.path.sep`, for example in Windows this error message must be:
+`OSError: SavedModel file does not exist at: C:\IncorrectPathToSavedModel\{saved_model.pbtxt|saved_model.pb}`
+in Linux:
+`OSError: SavedModel file does not exist at: ~/IncorrectPathToSavedModel/{saved_model.pbtxt|saved_model.pb}`
+
+**Standalone code to reproduce the issue**
+```
+from tensorflow import keras
+model_dir = 'C:\\IncorrectPathToSavedModel'
+model = keras.models.load_model(model_dir)
+```

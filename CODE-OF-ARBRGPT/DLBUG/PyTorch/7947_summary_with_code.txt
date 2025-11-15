@@ -1,0 +1,16 @@
+[Title] EmbeddingBag max_norm parameter does not work
+
+When using the `max_norm` parameter, the following error occurs:
+
+```
+/usr/local/lib/python3.5/dist-packages/torch/nn/functional.py in embedding_bag(embedding_matrix, indices, offsets, max_norm, norm_type, scale_grad_by_freq, mode, sparse)
+   1167     if max_norm is not None:
+   1168         with torch.no_grad():
+-> 1169             torch.embedding_renorm_(weight, input, max_norm, norm_type)
+   1170 
+   1171     ret, _, _ = torch.embedding_bag(
+
+NameError: name 'weight' is not defined
+```
+
+Pytorch version 0.4.0

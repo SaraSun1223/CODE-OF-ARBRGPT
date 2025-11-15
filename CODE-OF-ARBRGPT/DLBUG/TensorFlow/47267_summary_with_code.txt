@@ -1,0 +1,66 @@
+[Title] Non-deterministic graph when custom_gradient has watched variables
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): No
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): CentOS Linux 7.8.2003
+- Mobile device (e.g. iPhone 8, Pixel 2, Samsung Galaxy) if the issue happens on mobile device: N/A
+- TensorFlow installed from (source or binary): binary
+- TensorFlow version (use command below): 2.5.0
+- Python version: 3.7.4
+- Bazel version (if compiling from source): N/A
+- GCC/Compiler version (if compiling from source): N/A
+- CUDA/cuDNN version: N/A
+- GPU model and memory: N/A
+
+**Describe the current behavior**
+
+`tf.custom_gradient()` keeps track of variables that are not part of the inputs and returns gradients for them. When there are multiple such variables, the created graph (in non-eager mode) is non-deterministic. The reason is that watched variable references are stored in a frozenset and since these references are essentially ids that have different ordering from one python invocation to another, the generated graph is different across different runs.
+
+**Describe the expected behavior**
+
+The generated graph in the aforementioned case should be deterministic across different runs.
+
+**Standalone code to reproduce the issue**
+
+Run the python script multiple times and diff the generated graphdefs. They are going to be different.
+
+```bash
+$ python run.py 1  # creates tf_graph.pbtxt.1
+$ python run.py 2  # creates tf_graph.pbtxt.2
+$ python run.py 3  # creates tf_graph.pbtxt.3
+```
+
+```python
+# run.py
+import sys
+import tensorflow as tf
+import tensorflow.compat.v1 as v1
+
+
+g = v1.Graph()
+with g.as_default():
+    # Create a bunch of variables that are captured in custom_gradient
+    captured = [tf.Variable(float(i)) for i in range(1, 20)]
+
+    @tf.custom_gradient
+    def FuncMult(x):
+        def GradMult(*dys, variables=None):
+            return (
+                4. * sum(captured) * dys[0],
+                [(i + 1) * x * y for i in range(len(variables))]
+            )
+
+        return x * sum(captured), GradMult
+
+    x = tf.Variable(6.)
+    y = FuncMult(x)
+    grad = tf.gradients(y, [x])
+
+graph_def = g.as_graph_def(add_shapes=True)
+with open(f"tf_graph.pbtxt.{sys.argv[1]}", "w") as f:
+    f.write(str(graph_def))
+```
+
+**Fix**
+
+Please see #47266 for a potential fix of this issue.

@@ -1,0 +1,15 @@
+[Title] [DLPack] DLPack doesn't work with int32 on gpu
+
+Reproduce code: https://colab.research.google.com/drive/1kwR_ZVutSot7yA7FqPUvCsKgXcirmNLh?pli=1#scrollTo=UI-LuV7EUick
+
+Error message on my machine:
+```python
+2020-07-11 14:42:25.598880: E tensorflow/stream_executor/cuda/cuda_driver.cc:1037] failed to enqueue async memcpy from device to host: CUDA_ERROR_INVALID_VALUE: invalid argument; host dst: 0x1abfd2c0; GPU src: 0x1a027e80; size: 12=0xc
+2020-07-11 14:42:25.598954: F tensorflow/core/common_runtime/gpu/gpu_util.cc:291] GPU->CPU Memcpy failed
+```
+
+It seems the int32 tensor's data pointer is on cpu instead of being on gpu, althought its device is "gpu". Previously as I know there's special case handling for int32 tensor(https://github.com/tensorflow/tensorflow/issues/34071), not sure whether this is related.
+
+And I just found I used constant_op.constant to test dlpacks, which means now it only test the case on cpu since tf.constant always place data on host memory
+
+Do you have any idea on this issue? @sanjoy @alextp

@@ -1,0 +1,75 @@
+[Title] Windows - tensorflow.python.framework.errors_impl.UnknownError_ Failed to rename_ 
+
+**System information**
+
+OS Name:                   Microsoft Windows 10 Enterprise
+OS Version:                10.0.17763 N/A Build 17763
+TensorFlow installed using 'conda'.
+tensorflow v2.2.0-rc4-8-g2b96f3662b 2.2.0
+Python 3.6.10 |Anaconda, Inc.| (default, Jan  7 2020, 15:18:16) [MSC v.1916 64 bit (AMD64)] on win32
+
+**Describe the current behavior**
+
+Saving checkpoint files from tensorflow is failing on Windows 10.
+
+```
+Traceback (most recent call last):
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "C:\Git\<redacted>\tests\integration\validate_train_model.py", line 216, in <module>
+    main()
+  File "C:\Git\<redacted>\tests\integration\validate_train_model.py", line 176, in main
+    fig_save_freq = fig_save_freq)
+  File "c:\git\<redacted>\src\pointnet\model.py", line 640, in fit
+    self.save_best_model()
+  File "c:\git\<redacted>\src\pointnet\model.py", line 493, in save_best_model
+    check_interval = False)
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\training\checkpoint_management.py", line 823, in save
+    self._record_state()
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\training\checkpoint_management.py", line 728, in _record_state
+    save_relative_paths=True)
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\training\checkpoint_management.py", line 248, in update_checkpoint_state_internal
+    text_format.MessageToString(ckpt))
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\lib\io\file_io.py", line 532, in atomic_write_string_to_file
+    rename(temp_pathname, filename, overwrite)
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\lib\io\file_io.py", line 491, in rename
+    rename_v2(oldname, newname, overwrite)
+  File "C:\Users\<redacted>\Miniconda3\envs\<redacted>\lib\site-packages\tensorflow\python\lib\io\file_io.py", line 508, in rename_v2
+    compat.as_bytes(src), compat.as_bytes(dst), overwrite)
+tensorflow.python.framework.errors_impl.UnknownError: Failed to rename: tests\files\checkpoints\0000_00_00_00_00_00\checkpoint.tmpc6ee5d6bc5a445c884bba8c3acadf01f to: tests\files\checkpoints\0000_00_00_00_00_00\checkpoint : Access is denied.
+; Input/output error
+```
+
+Problem traced to:
+tensorflow.python.lib.io.file_io, line 532, function atomic_write_string_to_file
+
+From debugging, tensorflow attempts to create, then overwrite a file while saving a checkpoint.  For some reason, the 'overwrite' parameter, although set to True, does nothing.  This causes the rename to fail (since the file seems to get created earlier in the checkpoint save process).
+
+We tried deleting the 'checkpoint' file before the 'save', but the checkpoint file that it's trying to overwrite appears to be created as a part of the 'save' call.
+
+I was able to get checkpoint saving working again by modifying atomic_write_string_to_file as follows.  My change checks for existence of the rename target and deletes it using os.remove if overwrite is True, rather than relying on the tensorflow custom machinery that doesn't seem to be working:
+
+```python
+def atomic_write_string_to_file(filename, contents, overwrite=True):
+  if not has_atomic_move(filename):
+    write_string_to_file(filename, contents)
+  else:
+    temp_pathname = filename + ".tmp" + uuid.uuid4().hex
+    write_string_to_file(temp_pathname, contents)
+    try:
+      if overwrite and os.path.exists(filename):
+        os.remove(filename)
+      rename(temp_pathname, filename, overwrite)
+    except errors.OpError:
+      delete_file(temp_pathname)
+      raise
+```
+
+The stack trace we got suggested that this is the same issue as someone was reporting for tensorflow.models:
+https://github.com/tensorflow/models/issues/4177
+
+**Describe the expected behavior**
+
+We should be able to successfully save a checkpoint on Windows 10.

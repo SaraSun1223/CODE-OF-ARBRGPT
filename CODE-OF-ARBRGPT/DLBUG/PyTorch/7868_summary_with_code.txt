@@ -1,0 +1,20 @@
+[Title] [PyTorch] [ONNX] Peephole optimizer transpose fusion broken
+
+With
+```
+class Test(torch.nn.Module):
+    def forward(self, x):
+        return x.transpose(1, 2).transpose(0, 1)
+```
+we have
+```
+>>> torch.onnx.export(Test(), torch.rand(2, 3, 5), 'test.onnx', verbose=True)
+graph(%0 : Float(2, 3, 5)) {
+  %1 : Float(5!, 2, 3!) = onnx::Transpose[perm=[1, 2, 0]](%0), scope: Test
+  return (%1);
+}
+```
+when we expect `Transpose[perm=[2, 0, 1]](%0)` or an equivalent.
+So one of the transformations in https://github.com/pytorch/pytorch/blob/master/torch/csrc/jit/passes/onnx/peephole.cpp is wrong.
+
+cc @ryanleary

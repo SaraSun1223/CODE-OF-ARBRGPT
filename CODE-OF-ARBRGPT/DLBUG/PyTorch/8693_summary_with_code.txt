@@ -1,0 +1,6 @@
+[Title] torch.nn.functional.grid_sample should throw error for invalid mode
+
+The only valid mode is 'bilinear', but one can pass anything to it and it will not complain:
+```
+torch.nn.functional.grid_sample(array_5d, indices, mode='anything')
+```

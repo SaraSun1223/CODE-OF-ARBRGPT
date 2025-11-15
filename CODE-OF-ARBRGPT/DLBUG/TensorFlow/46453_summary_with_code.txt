@@ -1,0 +1,57 @@
+[Title] TensorRT converter fails for CombinedNonMaxSuppression
+
+<em>Please make sure that this is a bug. As per our
+[GitHub Policy](https://github.com/tensorflow/tensorflow/blob/master/ISSUES.md),
+we only address code/doc bugs, performance issues, feature requests and
+build/installation issues on GitHub. tag:bug_template</em>
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): **Yes**
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): **Ubuntu 18.04**
+- TensorFlow installed from (source or binary): **Binary**
+- TensorFlow version (use command below): **TF:2.5.0-dev20210114**
+- Python version: **3.7**
+- CUDA/cuDNN version: **11.0, 8.0.4**
+- GPU model and memory: **1060**
+
+**Describe the current behavior**
+TensorRT converter crashes with a segmentation fault when I try to export my `saved_model`.
+Interestingly, if I set `minimum_segment_size=10`, it works because it skips 
+
+*Replaced segment 5 consisting of 7 nodes by StatefulPartitionedCall/decode_predictions/TRTEngineOp_0_5.
+2021-01-15 15:21:38.915310: I tensorflow/compiler/tf2tensorrt/convert/convert_graph.cc:858] Segment consists of nodes: StatefulPartitionedCall/decode_predictions/combined_non_max_suppression/CombinedNonMaxSuppression, StatefulPartitionedCall/decode_predictions/combined_non_max_suppression/CombinedNonMaxSuppression/max_output_size_per_class, StatefulPartitionedCall/decode_predictions/combined_non_max_suppression/Const, StatefulPartitionedCall/decode_predictions/combined_non_max_suppression/iou_threshold, StatefulPartitionedCall/decode_predictions/combined_non_max_suppression/score_threshold, StatefulPartitionedCall/decode_predictions/transpose_1, StatefulPartitionedCall/decode_predictions/transpose_1/perm*
+
+I have attached the full log after running with these flags
+`TF_CPP_VMODULE=trt_engine_op=2,convert_nodes=2,convert_graph=2,segment=2,trt_shape_optimization_profiles=2,trt_engine_resource_ops=2 python trt.py`
+
+**Standalone code to reproduce the issue**
+```python
+import os
+
+import tensorflow as tf
+
+## Download and extract the zip 
+## URL: https://drive.google.com/file/d/1Zxqdnm2iHpJGdUl17cAi-lV7wZ3UhMDA/view
+
+params = tf.experimental.tensorrt.ConversionParams(
+    precision_mode='FP32',
+    maximum_cached_engines=1,
+    minimum_segment_size=5)
+
+converter = tf.experimental.tensorrt.Converter(
+    input_saved_model_dir='retinanet-18-640-30x-64-tpu',
+    conversion_params=params)
+converter.convert()
+
+def input_fn(steps=1):
+    for i in range(steps):
+        yield (tf.random.uniform([640, 640, 3]), tf.constant(1, dtype=tf.int32))
+        
+converter.build(input_fn=input_fn)
+converter.save('trt')
+```
+
+**Other info / logs** Include any logs or source code that would be helpful to
+diagnose the problem. If including tracebacks, please include the full
+traceback. Large logs and files should be attached.
+[trt_log.txt](https://github.com/tensorflow/tensorflow/files/5819748/trt_log.txt)

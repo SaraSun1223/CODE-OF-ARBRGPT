@@ -1,0 +1,6 @@
+[Title] the problem of torch.index() function in pytorch-0.4.0
+
+a = torch.FloatTensor(5)
+a.index(3) 
+The above code is running right in pytorch-0.3, but is wrong in pytorch-0.4,
+TyreError: index(): argument "indices" (position 1) must be tuple of Tensors, not int.

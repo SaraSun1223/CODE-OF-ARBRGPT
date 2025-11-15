@@ -1,0 +1,42 @@
+[Title] mx.symbol.numpy._Symbol.__deepcopy__ logic error
+
+`mx.symbol.numpy._Symbol.__deepcopy__` performs shallow copy instead of deep copy like `mx.symbol.Symbol.__deepcopy__ `.
+
+Problem:
+```
+[ins] In [1]: import mxnet as mx
+
+[ins] In [2]: import copy
+
+[ins] In [3]: v = mx.sym.Variable('a').as_np_ndarray()
+
+[ins] In [4]: b = copy.copy(v)
+
+[ins] In [5]: b._set_attr(name='b')
+
+[ins] In [6]: v
+Out[6]: <_Symbol b>
+
+[ins] In [7]: b
+Out[7]: <_Symbol b>
+```
+
+
+Expected:
+```
+[ins] In [1]: import mxnet as mx
+
+[ins] In [2]: import copy
+
+[ins] In [3]: v = mx.sym.Variable('a').as_np_ndarray()
+
+[ins] In [4]: b = copy.copy(v)
+
+[ins] In [5]: b._set_attr(name='b')
+
+[ins] In [6]: v
+Out[6]: <_Symbol a>
+
+[ins] In [7]: b
+Out[7]: <_Symbol b>
+```

@@ -1,0 +1,77 @@
+[Title] Numpy Operator Inconsistency
+
+## argmax
+The dtype return be argmax is float32 instead of int
+```
+>>> d = mx.np.array([0, 1])
+>>> mx.np.argmax(d)
+array(1.)
+>>> mx.np.argmax(d).dtype
+<class 'numpy.float32'>
+```
+
+## repeat
+
+```
+import mxnet as mx
+from mxnet import util
+
+
+@util.use_np
+def func():
+    x = mx.np.array([[1,2],[3,4]])
+    print(mx.np.repeat(x, [1, 2], axis=0))
+
+func()
+```
+```
+mxnet.base.MXNetError: Invalid Parameter format for repeats expect int but value='[1, 2]', in operator repeat(name="", axis="0", repeats="[1, 2]")
+```
+
+## softmax
+```
+import mxnet as mx
+from mxnet import util
+
+@util.use_np
+def func():
+    x = mx.np.array([], ctx=mx.gpu(0)).reshape(2, 0, 0)
+    print(mx.npx.softmax(x))
+
+func()
+```
+```
+Floating point exception (core dumped)
+```
+
+## mean
+```
+import mxnet as mx
+from mxnet import util
+
+
+@util.use_np
+def func():
+    x = mx.np.array([], ctx=mx.gpu(0)).reshape(2, 0, 0)
+    print(mx.np.mean(x))
+func()
+```
+```
+0.0 (expect NaN)
+```
+
+## prod
+```
+import mxnet as mx
+from mxnet import util
+
+
+@util.use_np
+def func():
+    x = mx.np.array([], ctx=mx.gpu(0)).reshape(2, 0, 0)
+    print(mx.np.prod(x))
+func()
+```
+```
+0.0 (expect 1.0)
+```

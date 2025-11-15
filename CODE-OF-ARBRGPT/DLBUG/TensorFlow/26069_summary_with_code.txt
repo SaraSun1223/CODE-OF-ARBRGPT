@@ -1,0 +1,29 @@
+[Title] Many operations don't support uint64
+
+**System information**
+- Have I written custom code (as opposed to using a stock example script provided in TensorFlow): No
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04): Mac OS 10.14.2
+- TensorFlow installed from (source or binary): binary
+- TensorFlow version (use command below): b'unknown' 1.13.0-rc1
+- Python version: Python 3.7.2
+- Bazel version (if compiling from source): N/A
+- GCC/Compiler version (if compiling from source): N/A
+- CUDA/cuDNN version: N/A
+- GPU model and memory: N/A
+
+**Describe the current behavior**
+
+I've encountered several operations that support int64 but not uint64, without any clear reasoning. `tf.equal`, `tf.fill`, `tf.where`, and `tf.stack`, for example, give errors like:
+
+    InvalidArgumentError (see above for traceback): No OpKernel was registered to support Op 'Pack' used by node stack (defined at <stdin>:4) with these attrs: [T=DT_UINT64, axis=0, N=2]
+
+
+**Describe the expected behavior**
+
+Functions that work for int64s should also work for uint64s when the behavior would be the same.
+
+**Code to reproduce the issue**
+
+https://gist.github.com/hjfreyer/31ab2dd2d85d1a509272af1c5e011dde
+**Other info / logs**
+Include any logs or source code that would be helpful to diagnose the problem. If including tracebacks, please include the full traceback. Large logs and files should be attached.

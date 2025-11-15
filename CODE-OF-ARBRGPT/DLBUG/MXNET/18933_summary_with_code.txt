@@ -1,0 +1,59 @@
+[Title] Floating point exception in mxnet.ndarray.InstanceNorm
+
+## Description
+(A clear and concise description of what the bug is.)
+`mxnet.ndarray.InstanceNorm` has floating point exception when the given data's `batch = 0` or `channel = 0`. Please see the provided code snippets for example.
+
+### Error Message
+(Paste the complete error message. Please also include stack trace by setting environment variable `DMLC_LOG_STACK_TRACE_DEPTH=10` before running your script.)
+>Floating point exception (core dumped)
+## To Reproduce
+(If you developed your own code, please provide a short script that reproduces the error. For existing examples, please provide link.)
+```python
+import mxnet
+import numpy as np
+
+input = mxnet.nd.array(np.random.rand(0,1,1)) # batch = 0
+gamma = mxnet.nd.array(np.random.rand(1))
+beta = mxnet.nd.array(np.random.rand(1))
+mxnet.ndarray.InstanceNorm(input, gamma, beta)
+```
+
+```python
+import mxnet
+import numpy as np
+
+input = mxnet.nd.array(np.random.rand(1,0,1)) # channel = 0
+gamma = mxnet.nd.array(np.random.rand(0))
+beta = mxnet.nd.array(np.random.rand(0))
+mxnet.ndarray.InstanceNorm(input, gamma, beta)
+```
+
+### Steps to reproduce
+(Paste the commands you ran that produced the error.)
+
+1. run the provided code in python interpreter or as a script
+2.
+
+## What have you tried to solve it?
+
+1.
+2.
+
+## Environment
+
+We recommend using our script for collecting the diagnositc information. Run the following command and paste the outputs below:
+```
+curl --retry 10 -s https://raw.githubusercontent.com/dmlc/gluon-nlp/master/tools/diagnose.py | python
+
+# paste outputs here
+```
+Got 404 when trying to get the script.
+
+Some environment information:
+
+* OS: ubuntu 18.04
+* Python: 3.7.6
+* pip: 20.0.2
+* numpy: 1.18.5
+* mxnet: 1.6.0

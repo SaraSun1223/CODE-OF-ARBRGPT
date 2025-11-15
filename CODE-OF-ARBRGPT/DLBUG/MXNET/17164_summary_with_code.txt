@@ -1,0 +1,83 @@
+[Title] net.Cast(_float16_) doesn't work_ Check failed_ (_in_type)[i] == dtype_param (2 vs. 0) _ This layer requires uniform type. Expected 'float32' v.s. given 'float16' at 'gamma'
+
+## Description
+When I use my dataset to trian Gluoncv's SSD with Float16, I meet this error:
+<br>`Check failed: (*in_type)[i] == dtype_param (2 vs. 0) : This layer requires uniform type. Expected 'float32' v.s. given 'float16' at 'gamma'`<br>
+I find in SSD, some BatchNormal Layers is use symbol to achieve. Because this, `net.cast('float16)`  loses efficacy.
+
+### Error Message
+mxnet1.5.1:<br>
+`Check failed: (*in_type)[i] == dtype_param (2 vs. 0) : This layer requires uniform type. Expected 'float32' v.s. given 'float16' at 'gamma'`
+
+## To Reproduce
+<br> 
+**Example 1**
+
+```python
+
+import mxnet
+import gluoncv
+
+net = gluoncv.model_zoo.get_model('ssd_512_resnet50_v1_voc', \
+    pretrained=False, 
+    pretrained_base=False,
+    norm_layer=None,
+    use_bn=False,
+    norm_kwargs= None)
+net.initialize()
+net.cast("float16")                                                               # loses efficacy
+
+
+one = mxnet.nd.zeros((1,3,512,512), dtype="float16")       # meet error
+
+net(one)
+``` 
+
+<br> 
+
+**Example 2** 
+
+```python
+import mxnet as mx
+
+data = mx.sym.var(name="data")
+data = mx.sym.Convolution(data, num_filter=512, kernel=(3, 3), pad=(1, 1))
+data = mx.sym.Activation(data, act_type="relu")
+data = mx.sym.BatchNorm(data)
+
+net = mx.gluon.SymbolBlock(data, mx.sym.var(name='data'))
+net.cast("float16")                                                               # loses efficacy
+net.initialize()
+
+net(mx.nd.ones((1, 3, 512, 512), dtype='float16'))             # meet error
+```
+
+### Steps to reproduce
+
+
+## What have you tried to solve it? 
+
+**Example1** 
+I don't know how to solve it<br> 
+
+**Example2**
+Change it like this:
+```python
+import mxnet as mx
+
+data = mx.sym.var(name="data", dtype='float16')
+data = mx.sym.Convolution(data, num_filter=512, kernel=(3, 3), pad=(1, 1), )
+data = mx.sym.Activation(data, act_type="relu")
+data = mx.sym.BatchNorm(data)
+
+net = mx.gluon.SymbolBlock(data, mx.sym.var(name='data', dtype='float16'))
+# net.cast("float16")
+net.initialize()
+
+net(mx.nd.ones((1, 3, 512, 512), dtype='float16'))
+```
+
+## Environment
+
+ubuntu 18 mxnet1.5.1
+mac mxnet1.5.1

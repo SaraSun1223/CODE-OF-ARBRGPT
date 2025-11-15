@@ -1,0 +1,35 @@
+[Title] Performance regression in CPU copy kernel since 1.3.1
+
+## 🐛 Bug
+
+The copy kernel is ~3-4x slower compared to 1.3.1 when copying from bytes to floats. I think that same type copy performance has also regressed, but I'm not entirely sure.
+
+## To Reproduce
+
+```python
+import torch
+torch.set_num_threads(1)
+x = torch.empty(1024*1024*100, dtype=torch.uint8)
+y = torch.empty(1024*1024*100, dtype=torch.float)
+
+%timeit y.copy_(x)
+%timeit y.copy_(x)
+%timeit y.copy_(x)
+```
+
+1.3.1:
+```
+56.1 ms ± 2.07 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+54.6 ms ± 1.33 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+55.2 ms ± 1.46 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+```
+
+1.4.0 nightly (1.4.0dev201):
+```
+186 ms ± 204 µs per loop (mean ± std. dev. of 7 runs, 1 loop each)
+187 ms ± 1.53 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+187 ms ± 1.57 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+```
+
+
+cc @ezyang @gchanan @zou3519 @VitalyFedyunin @ngimel @mruberry

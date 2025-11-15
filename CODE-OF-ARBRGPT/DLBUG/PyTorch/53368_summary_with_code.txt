@@ -1,0 +1,30 @@
+[Title] Undocumented change of behavior for Embeddings in PyTorch 1.8
+
+## 📚 Documentation
+
+I'm filing this as a documentation problem but it could also be a bug if the documentation is what you want to be right.
+
+Starting PyTorch 1.8, the `Embedding` layer will always output a vector of zeros for the `padding_idx` used to create it. Here is a short snippet to observe the behavior:
+
+```python
+import torch
+import torch.nn as nn
+
+embeds = nn.Embedding(5, 12, padding_idx=0) # Weights at 0 are initialized with zeros
+embeds.weight.data[0] = torch.ones(12) # Put another value
+embeds(torch.tensor([0]))
+```
+
+In Pytorch <= 1.7.1 this will return a tensor of ones, using the updated weights. Starting in PyTorch 1.8, this return a tensors of zeros.
+
+The [documentation](https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html#torch.nn.Embedding) still states that:
+
+"""
+With padding_idx set, the embedding vector at padding_idx is initialized to all zeros. However, note that this vector can be modified afterwards, e.g., using a customized initialization method, and thus changing the vector used to pad the output. The gradient for this vector from Embedding is always zero.
+"""
+
+I have no idea if the change was intended and the documentation was not updated accordingly, or if the change was not intended in which case there is a bug to fix. If you could tell me which one it is, it would be much appreciated!
+
+In the first case I think this would warrant a clear warning in the release notes as it was not obvious to me from reading them and I had a lot of pretrained models not working the same way in 🤗 Transformers when upgrading to 1.8.
+
+cc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @brianjo @mruberry

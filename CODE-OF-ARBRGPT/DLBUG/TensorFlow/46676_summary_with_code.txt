@@ -1,0 +1,52 @@
+[Title] tf.raw_ops.PopulationCount for uint32 not supported but documented
+
+**System information**
+
+- OS Platform and Distribution:  (Intel Linux Ubuntu 20.04):
+- TensorFlow installed from (source or binary): python pip
+- TensorFlow version: '2.4.1'
+- Python version: Python 3.8.6
+- CPU
+
+**Describe the current behavior**
+tf.raw_ops.PopulationCount of array with type uint32 fails.
+
+**Describe the expected behavior**
+In api documentation for raw_ops.PopulationCount for Arg x: 
+A Tensor. Must be one of the following types: int8, int16, int32, int64, uint8, uint16, uint32, uint64. 
+
+So this is either a documentation error or more likely a bug, because feature is important on uint32.
+
+**Standalone code to reproduce the issue**
+a = numpy.array([3], dtype = numpy,uint32)
+tf.raw_ops.PopulationCount(x=a)
+
+**Other info / logs** Include any logs or source code that would be helpful to
+diagnose the problem. If including tracebacks, please include the full
+traceback. Large logs and files should be attached.
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/home/rst/PYTHON/ng3py/lib/python3.8/site-packages/tensorflow/python/util/tf_export.py", line 404, in wrapper
+    return f(**kwargs)
+  File "/home/rst/PYTHON/ng3py/lib/python3.8/site-packages/tensorflow/python/ops/gen_bitwise_ops.py", line 547, in population_count
+    return population_count_eager_fallback(
+  File "/home/rst/PYTHON/ng3py/lib/python3.8/site-packages/tensorflow/python/ops/gen_bitwise_ops.py", line 570, in population_count_eager_fallback
+    _result = _execute.execute(b"PopulationCount", 1, inputs=_inputs_flat,
+  File "/home/rst/PYTHON/ng3py/lib/python3.8/site-packages/tensorflow/python/eager/execute.py", line 59, in quick_execute
+    tensors = pywrap_tfe.TFE_Py_Execute(ctx._handle, device_name, op_name,
+tensorflow.python.framework.errors_impl.NotFoundError: Could not find device for node: {{node PopulationCount}} = PopulationCount[T=DT_UINT32]
+All kernels registered for op PopulationCount:
+  device='GPU'; T in [DT_INT64]
+  device='GPU'; T in [DT_INT32]
+  device='GPU'; T in [DT_INT16]
+  device='GPU'; T in [DT_UINT16]
+  device='GPU'; T in [DT_INT8]
+  device='GPU'; T in [DT_UINT8]
+  device='CPU'; T in [DT_INT64]
+  device='CPU'; T in [DT_INT32]
+  device='CPU'; T in [DT_INT16]
+  device='CPU'; T in [DT_UINT16]
+  device='CPU'; T in [DT_INT8]
+  device='CPU'; T in [DT_UINT8]
+ [Op:PopulationCount]

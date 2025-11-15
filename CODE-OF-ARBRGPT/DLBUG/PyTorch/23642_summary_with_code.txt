@@ -1,0 +1,117 @@
+[Title] Performance Regression of Dataloader
+
+## 🐛 Bug
+
+Latest change to Dataloader (#19228) leads to severe performance regression for large scale training up to 30%. We finally root the cause to theses change: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py#L889-L891. It causes the exit of each epoch has additional 5 seconds.
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+<!-- If you have a code sample, error messages, stack traces, please provide it here as well -->
+
+```python
+# regression.py
+import torch
+import time
+
+from torch.utils.data import TensorDataset, DataLoader
+
+dataset = TensorDataset(torch.randn(10240, 2))
+loader = DataLoader(dataset, batch_size=128, num_workers=2, pin_memory=True, drop_last=False)
+
+for epoch in range(10):
+    for idx, data in enumerate(loader):
+        data = data[0].cuda()
+        if idx == 10240/128-1:
+            ts = time.time()
+    print("Exit epoch {} elapsed {:.2f}s".format(epoch, time.time()-ts))
+```
+
+## Expected behavior
+
+The exit is basically free in pytorch 1.1, but it takes 5s in pytorch 1.2.
+
+```console
+# 1.2.0a0
+$ python regression.py
+Exit epoch 0 elapsed 5.01s       
+Exit epoch 1 elapsed 5.05s       
+Exit epoch 2 elapsed 5.05s       
+Exit epoch 3 elapsed 5.05s       
+Exit epoch 4 elapsed 5.05s       
+Exit epoch 5 elapsed 5.05s       
+Exit epoch 6 elapsed 5.05s       
+Exit epoch 7 elapsed 5.05s       
+Exit epoch 8 elapsed 5.05s       
+Exit epoch 9 elapsed 5.04s
+
+# 1.1.0a0
+$ python regression.py
+Exit epoch 0 elapsed 0.01s       
+Exit epoch 1 elapsed 0.02s       
+Exit epoch 2 elapsed 0.03s       
+Exit epoch 3 elapsed 0.02s       
+Exit epoch 4 elapsed 0.03s       
+Exit epoch 5 elapsed 0.03s       
+Exit epoch 6 elapsed 0.03s       
+Exit epoch 7 elapsed 0.03s       
+Exit epoch 8 elapsed 0.02s       
+Exit epoch 9 elapsed 0.02s  
+```
+<!-- A clear and concise description of what you expected to happen. -->
+
+## Environment
+
+```
+PyTorch version: 1.2.0a0+5b0484d                                          
+Is debug build: No                                                        
+CUDA used to build PyTorch: 10.1.233                                      
+                                                                          
+OS: Ubuntu 18.04.2 LTS                                                    
+GCC version: (Ubuntu 7.4.0-1ubuntu1~18.04.1) 7.4.0                        
+CMake version: version 3.14.0                                             
+                                                                          
+Python version: 3.6                                                       
+Is CUDA available: Yes                                                    
+CUDA runtime version: 10.1.241                                            
+GPU models and configuration:                                             
+GPU 0: Tesla V100-SXM2-16GB                                               
+GPU 1: Tesla V100-SXM2-16GB                                               
+GPU 2: Tesla V100-SXM2-16GB                                               
+GPU 3: Tesla V100-SXM2-16GB                                               
+GPU 4: Tesla V100-SXM2-16GB                                               
+GPU 5: Tesla V100-SXM2-16GB                                               
+GPU 6: Tesla V100-SXM2-16GB                                               
+GPU 7: Tesla V100-SXM2-16GB                                               
+                                                                          
+Nvidia driver version: 418.40.04                                          
+cuDNN version: /usr/lib/x86_64-linux-gnu/libcudnn.so.7.6.3                
+                                                                          
+Versions of relevant libraries:                                           
+[pip] msgpack-numpy==0.4.3.2                                              
+[pip] numpy==1.16.4                                                       
+[pip] torch==1.2.0a0+5b0484d                                              
+[pip] torchtext==0.4.0                                                    
+[pip] torchvision==0.3.0a0                                                
+[conda] magma-cuda100             2.1.0                         5    local
+[conda] mkl                       2019.1                      144         
+[conda] mkl-include               2019.1                      144         
+[conda] nomkl                     3.0                           0         
+[conda] torch                     1.2.0a0+5b0484d          pypi_0    pypi 
+[conda] torchtext                 0.4.0                    pypi_0    pypi 
+[conda] torchvision               0.3.0a0                  pypi_0    pypi 
+```
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+
+The suggest fix is to recover previous lines around https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py#L889-L891. For example, following code will fix the problem:
+
+```python
+self.worker_result_queue.cancel_join_thread()
+self.worker_result_queue.put((0, None))      
+self.pin_memory_thread.join()                
+self.worker_result_queue.close()   
+```

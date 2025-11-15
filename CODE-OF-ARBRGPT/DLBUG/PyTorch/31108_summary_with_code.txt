@@ -1,0 +1,90 @@
+[Title] test_int_pow_cuda failed on Windows
+
+## 🐛 Bug
+
+<!-- A clear and concise description of what the bug is. -->
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+Run the following code:
+```python
+import torch
+
+# The following ones will fail.
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int64).pow(4); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int32).pow(4); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int16).pow(4); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int8).pow(4); print(a)
+
+# The following ones will be okay.
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int64).pow(2); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int32).pow(2); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int16).pow(2); print(a)
+a = torch.tensor([-1,  1], device='cuda:0', dtype=torch.int8).pow(2); print(a)
+```
+
+Error message:
+```
+  File "<string>", line 1, in <module>
+  File "C:\Users\circleci\project\build\win_tmp\build\torch\tensor.py", line 162, in __repr__
+    return torch._tensor_str._str(self)
+  File "C:\Users\circleci\project\build\win_tmp\build\torch\_tensor_str.py", line 311, in _str
+    tensor_str = _tensor_str(self, indent)
+  File "C:\Users\circleci\project\build\win_tmp\build\torch\_tensor_str.py", line 209, in _tensor_str
+    formatter = _Formatter(get_summarized_data(self) if summarize else self)
+  File "C:\Users\circleci\project\build\win_tmp\build\torch\_tensor_str.py", line 83, in __init__
+    value_str = '{}'.format(value)
+  File "C:\Users\circleci\project\build\win_tmp\build\torch\tensor.py", line 412, in __format__
+    return self.item().__format__(format_spec)
+RuntimeError: CUDA error: unspecified launch failure
+```
+
+<!-- If you have a code sample, error messages, stack traces, please provide it here as well -->
+
+## Expected behavior
+
+<!-- A clear and concise description of what you expected to happen. -->
+No error,
+
+## Environment
+
+Please copy and paste the output from our
+[environment collection script](https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py)
+(or fill out the checklist below manually).
+
+You can get the script and run it with:
+```
+wget https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py
+# For security purposes, please check the contents of collect_env.py before running it.
+python collect_env.py
+```
+
+PyTorch version: N/A
+Is debug build: N/A
+CUDA used to build PyTorch: N/A
+
+OS: Microsoft Windows Server 2019 Datacenter
+GCC version: Could not collect
+CMake version: Could not collect
+
+Python version: 3.7
+Is CUDA available: N/A
+CUDA runtime version: 10.1.243
+GPU models and configuration: GPU 0: Tesla T4
+Nvidia driver version: 426.00
+cuDNN version: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\cudnn64_7.dll
+
+Versions of relevant libraries:
+[pip] Could not collect
+[conda] Could not collect
+
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+I'm pretty sure that TDR is not a problem because the GPU is already in TCC mode.
+BTW, it is not a problem in 1.3.1 too.
+
+cc @ngimel @peterjc123

@@ -1,0 +1,62 @@
+[Title] [LayerNorm] Missing the mismatch cues of in_channels
+
+## Description
+It seems that LayerNorm could work through even the setting of `in_channels` is wrong. As seen in the reproducible code snippet below, I am setting the parameters `in_channels` as 768 purposely in all cases which are unmatched receiving a input whose whose dimension of last axis is 1024. However, only the last of the three error cases would produce a **"reasonable"** error message. 
+
+I'm not entirely clear about the underlying implementation of `nn.LayerNorm`, and it make no sense to me that the first two cases are properly executable. I am wondering is there any chance to recheck the LayerNorm to generating an error message to infrom the user of the mismatch. It is now apparent that error messages occur only when there are other layers attached and the model is hybridized. 
+
+The above thinking and experimental process were inspired by a typo in the [SQUAD fine-tuning scripts of XLNET, which may need to be corrected. Surprisingly, this is a runable script even if the units size of xlnet large is 1024.
+
+https://github.com/dmlc/gluon-nlp/blob/137e6b16bc1e672c6963a1e2ed754357e5a2ba11/scripts/language_model/model/qa.py#L37-L46
+
+## To Reproduce
+```
+import mxnet as mx
+from mxnet.gluon import HybridBlock,nn
+mx.npx.set_np()
+
+class Foobar(HybridBlock):
+    def __init__(self, units, prefix=None, params=None):
+        super(Foobar, self).__init__(prefix=prefix, params=params)
+        self.dense = nn.Dense(1, flatten=False)
+        self.layernorm = nn.LayerNorm(epsilon=1e-12, in_channels=768)
+    def hybrid_forward(self, F, x):
+        out = self.layernorm(x)
+        return out
+
+class Foo(HybridBlock):
+    def __init__(self, units, prefix=None, params=None):
+        super(Foo, self).__init__(prefix=prefix, params=params)
+        self.dense = nn.Dense(1, flatten=False)
+        self.layernorm = nn.LayerNorm(epsilon=1e-12, in_channels=768)
+    def hybrid_forward(self, F, x):
+        out = self.layernorm(x)
+        out = self.dense(out)
+        return out
+
+foo_0 = Foobar(units=1024)
+foo_0.initialize(ctx=mx.gpu())
+foo_0.hybridize()
+out = foo_0(mx.np.random.normal(0,1,size=(10,1024), ctx=mx.gpu()))
+
+foo_1 = Foo(units=1024)
+foo_1.initialize(ctx=mx.gpu())
+out = foo_1(mx.np.random.normal(0,1,size=(10,1024), ctx=mx.gpu()))
+
+foo_2 = Foo(units=1024)
+foo_2.initialize(ctx=mx.gpu())
+foo_2.hybridize()
+out = foo_2(mx.np.random.normal(0,1,size=(10,1024), ctx=mx.gpu()))
+
+```
+
+### Error Message
+```
+DeferredInitializationError: Parameter 'dense2_weight' has not been initialized yet because initialization was deferred. Actual initialization happens during the first forward pass. Please pass one batch of data through the network before accessing Parameters. You can also avoid deferred initialization by specifying in_units, num_features, etc., for network layers.
+
+During handling of the above exception, another exception occurred:
+AssertionError: Expected shape (1024,) is incompatible with given shape (768,).
+```
+
+## Comments
+@sxjscience
